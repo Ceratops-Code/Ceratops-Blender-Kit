@@ -22,7 +22,13 @@ import tempfile
 from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-DEFAULT_TARGETS = ['tests/test_blender_integration.py', 'tests/test_mcp_contract.py', 'tests/test_production_service.py']
+MCP_SERVER_ROOT = ROOT / "mcp-servers" / "ceratops_blender_mcp"
+PYTEST_CONFIG = MCP_SERVER_ROOT / "pyproject.toml"
+DEFAULT_TARGETS = [
+    "mcp-servers/ceratops_blender_mcp/tests/test_blender_integration.py",
+    "mcp-servers/ceratops_blender_mcp/tests/test_mcp_contract.py",
+    "mcp-servers/ceratops_blender_mcp/tests/test_production_service.py",
+]
 RESULT_SCHEMA = "ceratops-repository-check-result.v1"
 CONTRACT_SCHEMA = "ceratops-test-result-contract.v1"
 IDENTITY_FIELDS = ("result_id", "candidate_id", "check_id", "check_version")
@@ -125,6 +131,7 @@ def execute_check(args: argparse.Namespace, targets: list[str], inherited: list[
         environment["PYTEST_ADDOPTS"] = shlex.join(inherited)
         command = args.probe_command or [
             sys.executable, "-m", "pytest", *targets, *without_basetemp(args.pytest_arg),
+            "-c", str(PYTEST_CONFIG),
             "--basetemp", str(temporary / "pytest"),
             "-o", "cache_dir=" + str(temporary / "pytest-cache"),
         ]

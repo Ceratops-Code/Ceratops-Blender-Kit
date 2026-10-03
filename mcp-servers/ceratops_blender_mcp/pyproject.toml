@@ -1,13 +1,13 @@
 [build-system]
-requires = ["hatchling>=1.27,<2"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "ceratops-blender-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deterministic, goal-oriented Blender production workflows over MCP."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14,<3.15"
 dependencies = [
   "filelock>=3.18,<4",
   "mcp>=2,<3",
@@ -22,7 +22,7 @@ dev = [
 ]
 
 [project.scripts]
-ceratops-blender-mcp = "ceratops_blender_mcp.server:main"
+ceratops-blender-mcp = "ceratops_blender_mcp.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ceratops_blender_mcp"]
@@ -35,10 +35,13 @@ pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ceratops_blender_mcp"]
 
 [tool.ruff.lint.per-file-ignores]
 # Current Ceratops compatibility owns these generated helpers and validates
@@ -46,7 +49,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 "scripts/*.py" = ["E501", "SIM105"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 mypy_path = "src"
 files = ["src/ceratops_blender_mcp"]

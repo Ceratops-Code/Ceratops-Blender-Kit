@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
+import pytest
+
+from ceratops_blender_mcp import __version__
+from ceratops_blender_mcp.__main__ import main
 from ceratops_blender_mcp.server import mcp
 
 EXPECTED_TOOLS = {
@@ -42,3 +47,16 @@ def test_server_exposes_the_complete_v1_tool_contract() -> None:
     tools = asyncio.run(mcp.list_tools())
 
     assert {tool.name for tool in tools} == EXPECTED_TOOLS
+
+
+def test_deployment_check_reports_exact_release_identity(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    main(["--deployment-check"])
+
+    output = capsys.readouterr().out
+    assert json.loads(output) == {
+        "mcp_server_id": "ceratops-blender-mcp",
+        "version": __version__,
+        "ready": True,
+    }

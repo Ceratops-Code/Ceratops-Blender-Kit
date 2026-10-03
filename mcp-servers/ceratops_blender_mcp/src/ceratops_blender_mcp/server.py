@@ -1,4 +1,4 @@
-"""Ceratops-Blender-MCP tool registration and stdio entry point."""
+"""Ceratops-Blender-MCP tool registration."""
 
 from __future__ import annotations
 
@@ -565,13 +565,3 @@ def resume_job(project_root: str, job_id: str) -> dict[str, object]:
     """Resume failed, cancelled, or interrupted work under the same stable job ID."""
 
     return service.resume_job(project_root, job_id=job_id)
-
-
-def main() -> None:
-    """Run Ceratops-Blender-MCP over the local stdio transport."""
-
-    mcp.run()
-
-
-if __name__ == "__main__":
-    main()

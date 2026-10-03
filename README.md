@@ -41,20 +41,22 @@ reusing that ID with different inputs fails.
 
 Requirements:
 
-- Python 3.12 or newer
+- Windows x64 CPython 3.14
 - [`uv`](https://docs.astral.sh/uv/)
 - Blender available as `blender` on `PATH`, or an absolute binary path in
   `CERATOPS_BLENDER_EXECUTABLE`
 
 ```powershell
-uv sync --extra dev
+$server = "mcp-servers/ceratops_blender_mcp"
+uv sync --project $server --extra dev --locked
 $env:CERATOPS_BLENDER_EXECUTABLE = 'C:\Program Files\Blender Foundation\Blender 4.5\blender.exe'
-uv run ceratops-blender-mcp
+uv run --project $server --locked ceratops-blender-mcp
 ```
 
-The entry point uses MCP stdio. A host configuration should launch
-`uv run --directory <repository> ceratops-blender-mcp` and pass the Blender
-executable through its environment when Blender is not on `PATH`.
+The source entry point uses MCP stdio. After managed deployment, a host should
+launch `C:\AI-Agents-MCP-Servers\ceratops-blender-mcp\bin\ceratops-blender-mcp.cmd
+--mcp` and pass the Blender executable through its environment when Blender is
+not on `PATH`.
 
 The server uses the maintained MCP Python SDK v2 (`mcp>=2,<3`) and its
 `MCPServer` API. The package name and Python module use lowercase ecosystem
@@ -124,15 +126,17 @@ tooling. Run them through the repository lifecycle operation runner, or use the
 narrow developer commands while editing:
 
 ```powershell
-uv run ruff check .
-uv run mypy
-uv run pytest
+uv run --project mcp-servers/ceratops_blender_mcp --locked ruff check .
+uv run --project mcp-servers/ceratops_blender_mcp --locked mypy
+uv run --project mcp-servers/ceratops_blender_mcp --locked pytest
 ```
 
 Tests use a recording Blender runtime so versioning, gating, packaging, and MCP
 contracts are exercised without pretending that a local Blender installation
-was rendered in CI. `tests/test_blender_integration.py` adds a real Blender smoke
-case and runs only when `CERATOPS_BLENDER_EXECUTABLE` is explicitly set.
+was rendered in CI.
+`mcp-servers/ceratops_blender_mcp/tests/test_blender_integration.py` adds a real
+Blender smoke case and runs only when `CERATOPS_BLENDER_EXECUTABLE` is explicitly
+set.
 
 ## Current boundaries
 

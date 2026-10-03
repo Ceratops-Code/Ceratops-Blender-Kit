@@ -1,7 +1,7 @@
 version: 2
 updates:
 - package-ecosystem: uv
-  directory: /
+  directory: /mcp-servers/ceratops_blender_mcp
   schedule:
     interval: weekly
 - package-ecosystem: uv
