@@ -1,0 +1,62 @@
+version: 4
+kind: ceratops-sdlc
+repository:
+  capabilities:
+    uv:
+      executable: uv
+  actions:
+    bootstrap:
+      requires:
+        capabilities:
+          - uv
+      steps:
+        - run:
+            - uv
+            - sync
+            - --project
+            - scripts
+            - --locked
+    validate:
+      requires:
+        capabilities:
+          - uv
+      steps:
+        - run:
+            - uv
+            - run
+            - --locked
+            - scripts/validate-repository.py
+    test:
+      requires:
+        capabilities:
+          - uv
+      steps:
+        - run:
+            - uv
+            - run
+            - --locked
+            - scripts/run-tests.py
+deliverables:
+  skills:
+    ceratops-blender-kit:
+      source: skills/ceratops-blender-kit
+      prerequisites: []
+      actions:
+        validate:
+          requires:
+            capabilities: []
+          steps:
+            - handoff:
+                lifecycle: ceratops-skill-lifecycle
+                action: source-validate
+                inputs:
+                  skill: ceratops-blender-kit
+        install:
+          requires:
+            capabilities: []
+          steps:
+            - handoff:
+                lifecycle: ceratops-skill-lifecycle
+                action: deploy
+                inputs:
+                  skill: ceratops-blender-kit

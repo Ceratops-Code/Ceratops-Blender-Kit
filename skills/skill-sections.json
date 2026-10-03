@@ -1,0 +1,16 @@
+{
+  "runtime_source_id": "Ceratops-Code/Ceratops-AI-Agents-Kit",
+  "validation_profile": "ceratops-compatible",
+  "sections": {
+    "core": "skills/sections/core.md"
+  },
+  "maintenance_workflows": {},
+  "runtime_payloads": {},
+  "python_runtime_skills": [],
+  "skills": {
+    "ceratops-blender-kit": [
+      "core"
+    ]
+  },
+  "actions": {}
+}

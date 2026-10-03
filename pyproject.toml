@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ceratops-blender-mcp"
+version = "0.1.0"
+description = "Deterministic, goal-oriented Blender production workflows over MCP."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "filelock>=3.18,<4",
+  "mcp>=2,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.18,<2",
+  "pytest>=8.4,<10",
+  "pytest-timeout>=2.4,<3",
+  "ruff>=0.13,<1",
+]
+
+[project.scripts]
+ceratops-blender-mcp = "ceratops_blender_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ceratops_blender_mcp"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+timeout = 15
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Current Ceratops compatibility owns these generated helpers and validates
+# their behavior separately; repository source retains the stricter style set.
+"scripts/*.py" = ["E501", "SIM105"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+files = ["src/ceratops_blender_mcp"]
+
+[[tool.mypy.overrides]]
+# The compatibility validator intentionally has only validator dependencies;
+# runtime imports are exercised by repository tests in the project environment.
+module = ["filelock", "filelock.*", "mcp", "mcp.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "ceratops_blender_mcp.server"
+disallow_untyped_decorators = false

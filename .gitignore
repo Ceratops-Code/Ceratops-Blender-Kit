@@ -1,0 +1,15 @@
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.egg-info/
+
+# Runtime project data belongs to production workspaces, never this source repo.
+.ceratops-blender/
+
+/scripts/node_modules/
+/.build/
