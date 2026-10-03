@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
+import sys
 from typing import Any
 
 from mcp.server import MCPServer
 
+from . import __version__
 from .service import ProductionService
 
 mcp = MCPServer("Ceratops-Blender-MCP")
@@ -568,8 +571,12 @@ def resume_job(project_root: str, job_id: str) -> dict[str, object]:
 
 
 def main() -> None:
-    """Run Ceratops-Blender-MCP over the local stdio transport."""
+    """Answer the manager's readiness probe or run the local stdio transport."""
 
+    if sys.argv[1:] == ["--deployment-check"]:
+        ready = {"mcp_server_id": "ceratops-blender-mcp", "version": __version__, "ready": True}
+        print(json.dumps(ready))
+        return
     mcp.run()
 
 

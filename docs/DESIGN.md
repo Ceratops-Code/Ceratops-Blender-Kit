@@ -143,8 +143,12 @@ runtime log file; the job record retains a bounded error summary.
 
 ## Repository lifecycle boundary
 
-`sdlc/sdlc.yml` is the sole repository lifecycle declaration. Current Ceratops
-compatibility supplies repository validation and test actions. This repository
-does not declare placeholder build, deploy, publish, or exact-artifact actions.
-Those become legitimate only after a real producer and consumer contract exists;
-the referenced Ceratops future plan does not itself authorize or implement them.
+`sdlc/sdlc.yml` is the sole repository lifecycle declaration. It includes
+repository validation and tests, skill deployment, and a Ceratops MCP manager
+installation handoff for `mcp-servers/ceratops_blender_mcp`. The server's
+`mcp-server.json` selects `ceratops_blender_mcp.server`; the manager's
+`--deployment-check` probe receives its exact identity, version, and readiness
+response before selecting an installation. `uv.lock` owns development dependency
+resolution, while `pylock.toml` is its manager-facing export. Publication and
+exact-artifact actions are not declared; the future Ceratops plan does not
+authorize or implement them.

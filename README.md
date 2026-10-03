@@ -47,14 +47,20 @@ Requirements:
   `CERATOPS_BLENDER_EXECUTABLE`
 
 ```powershell
-uv sync --extra dev
-$env:CERATOPS_BLENDER_EXECUTABLE = 'C:\Program Files\Blender Foundation\Blender 4.5\blender.exe'
-uv run ceratops-blender-mcp
+uv sync --project mcp-servers/ceratops_blender_mcp --extra dev
+$env:CERATOPS_BLENDER_EXECUTABLE = '<absolute path to blender.exe>'
+uv run --directory mcp-servers/ceratops_blender_mcp ceratops-blender-mcp
 ```
 
-The entry point uses MCP stdio. A host configuration should launch
-`uv run --directory <repository> ceratops-blender-mcp` and pass the Blender
-executable through its environment when Blender is not on `PATH`.
+The entry point uses MCP stdio. The deployable server source, lock, and
+`mcp-server.json` live in `mcp-servers/ceratops_blender_mcp`; the Ceratops MCP
+manager installs that declared source. A development host can launch
+`uv run --directory <repository>/mcp-servers/ceratops_blender_mcp ceratops-blender-mcp`
+and pass the Blender executable through its environment when it is not on `PATH`.
+`uv.lock` is the development lock; the manager consumes `pylock.toml`, exported
+from it with `uv export --project mcp-servers/ceratops_blender_mcp --locked
+--no-emit-project --format pylock.toml --output-file
+mcp-servers/ceratops_blender_mcp/pylock.toml`.
 
 The server uses the maintained MCP Python SDK v2 (`mcp>=2,<3`) and its
 `MCPServer` API. The package name and Python module use lowercase ecosystem
@@ -124,15 +130,15 @@ tooling. Run them through the repository lifecycle operation runner, or use the
 narrow developer commands while editing:
 
 ```powershell
-uv run ruff check .
-uv run mypy
-uv run pytest
+uv run --locked scripts/validate-repository.py
+uv run --locked scripts/run-tests.py
 ```
 
 Tests use a recording Blender runtime so versioning, gating, packaging, and MCP
 contracts are exercised without pretending that a local Blender installation
-was rendered in CI. `tests/test_blender_integration.py` adds a real Blender smoke
-case and runs only when `CERATOPS_BLENDER_EXECUTABLE` is explicitly set.
+was rendered in CI. The nested
+`mcp-servers/ceratops_blender_mcp/tests/test_blender_integration.py` adds a real
+Blender smoke case and runs only when `CERATOPS_BLENDER_EXECUTABLE` is set.
 
 ## Current boundaries
 

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import sys
+import tomllib
+from pathlib import Path
 
-from ceratops_blender_mcp.server import mcp
+from ceratops_blender_mcp.server import main, mcp
 
 EXPECTED_TOOLS = {
     "inspect_project",
@@ -42,3 +46,26 @@ def test_server_exposes_the_complete_v1_tool_contract() -> None:
     tools = asyncio.run(mcp.list_tools())
 
     assert {tool.name for tool in tools} == EXPECTED_TOOLS
+
+
+def test_deployment_manifest_points_to_the_callable_server() -> None:
+    manifest_path = Path(__file__).resolve().parents[1] / "mcp-server.json"
+    manifest = json.loads(manifest_path.read_text())
+
+    assert manifest == {"schema": 2, "module": "ceratops_blender_mcp.server"}
+    assert callable(mcp.run)
+
+
+def test_deployment_probe_reports_the_declared_version(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["ceratops-blender-mcp", "--deployment-check"])
+
+    main()
+
+    project = tomllib.loads(
+        (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    )
+    assert json.loads(capsys.readouterr().out) == {
+        "mcp_server_id": "ceratops-blender-mcp",
+        "version": project["project"]["version"],
+        "ready": True,
+    }

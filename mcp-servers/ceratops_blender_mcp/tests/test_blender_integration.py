@@ -5,7 +5,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from ceratops_blender_mcp.blender_runtime import BlenderRuntime
 from ceratops_blender_mcp.service import ProductionService
 

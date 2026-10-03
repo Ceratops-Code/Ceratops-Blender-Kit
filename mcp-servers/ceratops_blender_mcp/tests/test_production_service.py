@@ -6,7 +6,6 @@ from pathlib import Path
 from threading import Event
 
 import pytest
-
 from ceratops_blender_mcp.blender_runtime import RecordingBlenderRuntime
 from ceratops_blender_mcp.service import ProductionService
 from ceratops_blender_mcp.storage import ProductionError, ProjectStore
