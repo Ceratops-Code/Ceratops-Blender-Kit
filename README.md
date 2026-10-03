@@ -11,6 +11,12 @@ renders, frame sequences, and ZIP packages. Artistic refinement remains a human
 and agent workflow; the low-level Blender MCP can still be used separately when
 an approved version needs bespoke editing.
 
+## Skills
+
+| Skill | Purpose |
+| --- | --- |
+| `ceratops-blender-kit` | Orchestrate versioned Blender character and shot production, including exact-source selection, review gates, approvals, and packaging. |
+
 ## What works
 
 - Read-only project and asset inspection, exact version comparison, and
@@ -130,8 +136,8 @@ case and runs only when `CERATOPS_BLENDER_EXECUTABLE` is explicitly set.
 
 ## Current boundaries
 
-- No GitHub repository, publication, deployment, tag, or release is part of
-  this local v1.
+- GitHub source publication and Ceratops-managed local deployment are supported;
+  no PyPI release or hosted Blender service is provided.
 - The unfinished exact-artifact lifecycle described in the Ceratops refactor
   plan is not implemented here. There are no fabricated build receipts,
   artifact declarations, delivery actions, or deployment claims.

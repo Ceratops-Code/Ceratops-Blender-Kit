@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ceratops Blender Kit"
+  short_description: "Orchestrate versioned Blender character and shot production"
+  default_prompt: "Use $ceratops-blender-kit to run the requested versioned Blender production workflow."

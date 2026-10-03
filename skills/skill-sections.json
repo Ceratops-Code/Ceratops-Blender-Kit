@@ -1,5 +1,5 @@
 {
-  "runtime_source_id": "Ceratops-Code/Ceratops-AI-Agents-Kit",
+  "runtime_source_id": "Ceratops-Code/Ceratops-Blender-Kit",
   "validation_profile": "ceratops-compatible",
   "sections": {
     "core": "skills/sections/core.md"
