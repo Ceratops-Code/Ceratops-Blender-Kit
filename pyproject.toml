@@ -9,7 +9,7 @@ description = "Deterministic, goal-oriented Blender production workflows over MC
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "filelock>=3.18,<4",
+  "filelock>=3.18,<5",
   "mcp>=2,<3",
 ]
 
