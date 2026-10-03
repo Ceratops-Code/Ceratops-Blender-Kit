@@ -54,7 +54,8 @@ deliverables:
             - handoff:
                 lifecycle: ceratops-mcp-server-lifecycle
                 action: install
-                inputs: {}
+                inputs:
+                  mcp-server: ceratops-blender-mcp
   skills:
     ceratops-blender-kit:
       source: skills/ceratops-blender-kit
