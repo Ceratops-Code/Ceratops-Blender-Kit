@@ -2,6 +2,12 @@ name: Bug report
 description: Report a reproducible problem.
 title: "[Bug]: "
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security vulnerabilities, exploit details, or bypass
+        techniques in this public form. Follow this repository's SECURITY.md
+        and use GitHub private vulnerability reporting instead.
   - type: textarea
     id: problem
     attributes:
