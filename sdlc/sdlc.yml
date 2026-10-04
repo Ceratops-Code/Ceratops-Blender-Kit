@@ -37,6 +37,25 @@ repository:
             - --locked
             - scripts/run-tests.py
 deliverables:
+  mcp-servers:
+    ceratops-blender-mcp:
+      source: mcp-servers/ceratops_blender_mcp
+      manifest: mcp-servers/ceratops_blender_mcp/mcp-server.json
+      prerequisites: []
+      actions:
+        validate:
+          requires:
+            capabilities: []
+          no-op: Repository validation and tests cover the MCP server source and manifest.
+        install:
+          requires:
+            capabilities: []
+          steps:
+            - handoff:
+                lifecycle: ceratops-mcp-server-lifecycle
+                action: install
+                inputs:
+                  mcp-server: ceratops-blender-mcp
   skills:
     ceratops-blender-kit:
       source: skills/ceratops-blender-kit

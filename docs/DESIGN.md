@@ -14,13 +14,17 @@ ask for a human review. It does not own storage or duplicate server behavior.
 ## Components
 
 ```text
-MCP host
-  -> server.py                 named, typed MCP tools
-     -> service.py             transition rules and review gates
-        -> storage.py          immutable versions and append-only events
-        -> jobs.py             stable, resumable bounded job records
-        -> blender_runtime.py  owned Blender subprocess boundary
-           -> execute_blender_job.py  fixed bpy operations inside Blender
+mcp-servers/ceratops_blender_mcp/
+  mcp-server.json              manager readiness-module declaration
+  pyproject.toml               package identity and runtime dependencies
+  src/ceratops_blender_mcp/
+    __main__.py                readiness and stdio switches
+    server.py                  named, typed MCP tools
+      -> service.py            transition rules and review gates
+         -> storage.py         immutable versions and append-only events
+         -> jobs.py            stable, resumable bounded job records
+         -> blender_runtime.py owned Blender subprocess boundary
+            -> execute_blender_job.py  fixed bpy operations inside Blender
 ```
 
 `server.py` is the public adapter. `service.py` rejects unknown operations and
@@ -144,7 +148,7 @@ runtime log file; the job record retains a bounded error summary.
 ## Repository lifecycle boundary
 
 `sdlc/sdlc.yml` is the sole repository lifecycle declaration. Current Ceratops
-compatibility supplies repository validation and test actions. This repository
-does not declare placeholder build, deploy, publish, or exact-artifact actions.
-Those become legitimate only after a real producer and consumer contract exists;
-the referenced Ceratops future plan does not itself authorize or implement them.
+compatibility supplies repository validation and test actions, declares the MCP
+server source and manifest under `mcp-servers/ceratops_blender_mcp`, and routes
+installation to `ceratops-mcp-server-lifecycle`. The repository still declares
+no PyPI publication or hosted-service deployment.
