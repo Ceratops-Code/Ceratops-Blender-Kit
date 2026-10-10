@@ -15,6 +15,9 @@ uv run --project mcp-servers/ceratops_blender_mcp --locked ceratops-blender-mcp
 Managed deployment packages this directory and installs the declared version
 under `%USERPROFILE%\.codex\mcp\ceratops-blender-mcp`. The module supports the
 manager's fixed `--deployment-check` protocol and the `--mcp` stdio switch.
+Readiness reports the package version, tool input schemas, and each tool's
+opaque-map allowlist. The MCP transport publishes those same schemas, including
+lip-sync cues with an integer frame and optional numeric mouth-open value.
 
 See the repository [`README.md`](../../README.md) for the tool contract and
 production workflow.

@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import NotRequired, TypedDict
 
 from mcp.server import MCPServer
 
 from .service import ProductionService
+
+
+class LipSyncCue(TypedDict):
+    """Publish the frame and optional mouth-open value consumed by Blender."""
+
+    frame: int
+    value: NotRequired[float]
+
 
 mcp = MCPServer("Ceratops-Blender-MCP")
 service = ProductionService()
@@ -387,7 +395,7 @@ def sync_lips(
     project_root: str,
     shot_id: str,
     source_version: str,
-    cues: list[dict[str, Any]],
+    cues: list[LipSyncCue],
 ) -> dict[str, object]:
     """Apply explicit frame/value mouth cues to an exact shot version."""
 
@@ -507,3 +515,12 @@ def get_job_status(project_root: str, job_id: str) -> dict[str, object]:
     """Read the persistent status and result of a long production job."""
 
     return service.get_job_status(project_root, job_id=job_id)
+
+
+async def get_tool_input_contract() -> dict[str, dict[str, object]]:
+    """Share SDK-owned input schemas with readiness; no inputs are opaque maps."""
+
+    return {
+        tool.name: {"input_schema": tool.input_schema, "opaque_parameters": []}
+        for tool in await mcp.list_tools()
+    }
