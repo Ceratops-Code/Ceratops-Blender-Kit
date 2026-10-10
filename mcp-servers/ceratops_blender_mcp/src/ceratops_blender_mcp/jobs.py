@@ -14,7 +14,6 @@ from .storage import (
     ProductionError,
     ProjectStore,
     payload_hash,
-    require_identifier,
     utc_now,
 )
 
@@ -31,6 +30,7 @@ class JobManager:
         )
         self._futures: dict[tuple[str, str], Future[None]] = {}
         self._cancellations: dict[tuple[str, str], threading.Event] = {}
+        self._active: dict[tuple[str, str], str] = {}
         self._guard = threading.RLock()
 
     @staticmethod
@@ -46,41 +46,36 @@ class JobManager:
         store: ProjectStore,
         *,
         operation: str,
-        request_id: str,
         payload: Mapping[str, object],
         executor: JobExecutor,
     ) -> dict[str, object]:
-        """Create or return the job bound to one idempotent request."""
+        """Start fresh work; identical active calls share only their live worker."""
 
-        require_identifier(request_id, "request_id")
-        project = store.initialize()
-        project_id = str(project["project_id"])
-        job_id = f"job_{uuid.uuid5(uuid.NAMESPACE_URL, f'{project_id}:{request_id}').hex}"
-        request_hash = payload_hash({"operation": operation, "payload": payload})
+        store.initialize()
+        job_id = f"job_{uuid.uuid4().hex}"
         path = self._job_path(store, job_id)
-        with store.lock():
-            if path.is_file():
-                existing = store.read_json(path)
-                if existing.get("request_hash") != request_hash:
-                    raise ProductionError("request_id is already bound to a different job payload")
-                return self._public(existing)
+        with self._guard, store.lock():
+            selection = (
+                str(store.root), payload_hash({"operation": operation, "payload": payload})
+            )
+            active = self._active.get(selection)
+            if active is not None:
+                return self._public(store.read_json(self._job_path(store, active)))
             record: dict[str, object] = {
                 "schema": "ceratops-blender-job.v1",
                 "job_id": job_id,
                 "operation": operation,
-                "request_id": request_id,
-                "request_hash": request_hash,
-                "payload": dict(payload),
                 "status": "queued",
-                "attempts": 0,
                 "created_at": utc_now(),
                 "updated_at": utc_now(),
             }
             store.write_json(path, record)
-        self._launch(store, job_id, executor)
+            self._active[selection] = job_id
+            self._launch(store, job_id, executor, dict(payload), selection)
         return self._public(record)
 
-    def _launch(self, store: ProjectStore, job_id: str, executor: JobExecutor) -> None:
+    def _launch(self, store: ProjectStore, job_id: str, executor: JobExecutor,
+                payload: dict[str, object], selection: tuple[str, str]) -> None:
         key = self._key(store, job_id)
         with self._guard:
             current = self._futures.get(key)
@@ -89,7 +84,7 @@ class JobManager:
             cancellation = threading.Event()
             self._cancellations[key] = cancellation
             self._futures[key] = self._pool.submit(
-                self._run_job, store, job_id, executor, cancellation
+                self._run_job, store, job_id, executor, cancellation, payload, selection
             )
 
     def _run_job(
@@ -98,6 +93,8 @@ class JobManager:
         job_id: str,
         executor: JobExecutor,
         cancellation: threading.Event,
+        payload: dict[str, object],
+        selection: tuple[str, str],
     ) -> None:
         path = self._job_path(store, job_id)
         try:
@@ -106,14 +103,14 @@ class JobManager:
                 record.update(
                     {
                         "status": "running",
-                        "attempts": int(record.get("attempts", 0)) + 1,
                         "started_at": utc_now(),
                         "updated_at": utc_now(),
                     }
                 )
                 record.pop("error", None)
                 store.write_json(path, record)
-            result = executor(store, record, cancellation)
+            # Inputs live only in this worker. Monitoring files cannot restart it.
+            result = executor(store, {**record, "payload": payload}, cancellation)
             status = "cancelled" if cancellation.is_set() else "completed"
             with store.lock():
                 record = store.read_json(path)
@@ -139,6 +136,10 @@ class JobManager:
                 )
                 store.write_json(path, record)
         finally:
+            with self._guard:
+                self._active.pop(selection, None)
+                self._futures.pop(self._key(store, job_id), None)
+                self._cancellations.pop(self._key(store, job_id), None)
             self._prune(store)
 
     def status(self, store: ProjectStore, job_id: str) -> dict[str, object]:
@@ -164,51 +165,6 @@ class JobManager:
                     store.write_json(path, record)
         return self._public(record)
 
-    def cancel(self, store: ProjectStore, job_id: str) -> dict[str, object]:
-        """Request cancellation without deleting partial or completed evidence."""
-
-        path = self._job_path(store, job_id)
-        if not path.is_file():
-            raise ProductionError(f"job does not exist: {job_id}")
-        key = self._key(store, job_id)
-        with self._guard:
-            cancellation = self._cancellations.get(key)
-            future = self._futures.get(key)
-            if cancellation is not None:
-                cancellation.set()
-            if future is not None:
-                future.cancel()
-        with store.lock():
-            record = store.read_json(path)
-            if record.get("status") in TERMINAL_STATES:
-                return self._public(record)
-            if record.get("status") == "queued" and (future is None or future.cancelled()):
-                record.update(
-                    {"status": "cancelled", "finished_at": utc_now(), "updated_at": utc_now()}
-                )
-            else:
-                record.update({"cancel_requested": True, "updated_at": utc_now()})
-            store.write_json(path, record)
-        return self._public(record)
-
-    def resume(self, store: ProjectStore, job_id: str, executor: JobExecutor) -> dict[str, object]:
-        """Rerun a failed, cancelled, or interrupted job under the same stable ID."""
-
-        path = self._job_path(store, job_id)
-        if not path.is_file():
-            raise ProductionError(f"job does not exist: {job_id}")
-        with store.lock():
-            record = store.read_json(path)
-            if record.get("status") not in {"failed", "cancelled", "interrupted"}:
-                raise ProductionError("only failed, cancelled, or interrupted jobs can resume")
-            record.update({"status": "queued", "updated_at": utc_now()})
-            record.pop("cancel_requested", None)
-            record.pop("finished_at", None)
-            record.pop("result", None)
-            store.write_json(path, record)
-        self._launch(store, job_id, executor)
-        return self._public(record)
-
     def _prune(self, store: ProjectStore) -> None:
         """Bound completed operational history; active job records are never pruned."""
 
@@ -232,9 +188,7 @@ class JobManager:
         keys = (
             "job_id",
             "operation",
-            "request_id",
             "status",
-            "attempts",
             "created_at",
             "updated_at",
             "started_at",

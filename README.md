@@ -20,7 +20,7 @@ an approved version needs bespoke editing.
 ## What works
 
 - Read-only project and asset inspection, exact version comparison, and
-  character validation.
+  character content checks.
 - Immutable character stages: reference import, blockout, mesh, retopology,
   look development, groom, rig, face rig, and review renders.
 - Immutable shot stages: layout, assembly from exact character versions,
@@ -29,13 +29,14 @@ an approved version needs bespoke editing.
 - Explicit appearance, groom, rig, facial-expression, and animation review
   gates. Promotion records approval without changing version bytes.
 - Versioned asset and episode ZIP packages.
-- Persistent jobs with stable IDs derived from `project + request_id`, plus
-  status, cancellation, and same-ID resume.
+- Current-worker status with fresh monitoring identifiers.
+- Repeated desired-state actions reuse matching completed output.
 - Archival without permanent production-version deletion.
 
-All write tools require a caller-supplied lowercase `request_id`. Repeating the
-same request while its retained job record exists returns the same job ID;
-reusing that ID with different inputs fails.
+Write tools take ordinary production inputs. A fresh invocation checks the
+actual project, selected versions and lifecycle state; it never reads a failed
+job to decide what to execute. A still-live matching operation shares its worker.
+There are no caller request IDs, job continuation or job mutation operations.
 
 ## Run locally
 
@@ -80,9 +81,9 @@ Version and lifecycle writes:
 - `animate_shot`, `sync_lips`, `add_secondary_motion`
 - `render_shot_preview`, `render_shot_final`
 - `package_asset`, `package_episode`
-- `cancel_job`, `resume_job`
 
-Every Blender-producing operation writes a new `vNNNN` directory. Callers must
+A Blender-producing operation reuses matching completed output or creates a
+new `vNNNN` directory. Callers must
 pass exact source versions; the server does not silently choose “latest.”
 Downstream gated tools accept only the exact version approved at the required
 gate. `render_shot_final`, for example, requires the selected preview version to
@@ -102,13 +103,17 @@ caller-selected Blender project owns its runtime data:
   shots/<id>/versions/vNNNN/
   shots/<id>/events/
   deliveries/<id>/versions/vNNNN/
-  jobs/job_<stable-id>.json
+  jobs/job_<worker-uuid>.json
 ```
 
 A version request is written first, output bytes are written into that reserved
 directory, and `record.json` is written last. Completed version records and
-artifacts are immutable. Failures retain `failure.json` and never reuse their
-version number. Promotion and archive records are append-only events.
+artifacts are immutable. A failed partial may retain a bounded error until the
+next production call discards abandoned partials under the project production
+lock. Partial numbers may be reused; completed version identities never are.
+Promotion and archive events describe current business state; repeating the
+current choice is a no-op, while selecting a prior version after another
+promotion records the new choice.
 
 Projects permit 25 active versions per entity by default. Creation stops at the
 limit until the caller archives an older version; archived production data is
@@ -126,9 +131,9 @@ tooling. Run them through the repository lifecycle operation runner, or use the
 narrow developer commands while editing:
 
 ```powershell
-uv run --project mcp-servers/ceratops_blender_mcp --locked ruff check .
-uv run --project mcp-servers/ceratops_blender_mcp --locked mypy
-uv run --project mcp-servers/ceratops_blender_mcp --locked pytest
+uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked ruff check .
+uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked mypy
+uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked pytest
 ```
 
 Tests use a recording Blender runtime so versioning, gating, packaging, and MCP
@@ -148,7 +153,7 @@ set.
 - V1 does not permanently delete production versions, invoke arbitrary Blender
   Python, synthesize high-end character art, run a render farm, or coordinate
   distributed Blender workers.
-- Cancellation is cooperative around the owned local Blender subprocess. A
+- Internal shutdown is cooperative around the owned local Blender subprocess. A
   machine-level crash can leave Blender work that the operating system must end;
   the future Ceratops worktree process-group design is not claimed here.
 

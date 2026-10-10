@@ -22,7 +22,7 @@ mcp-servers/ceratops_blender_mcp/
     server.py                  named, typed MCP tools
       -> service.py            transition rules and review gates
          -> storage.py         immutable versions and append-only events
-         -> jobs.py            stable, resumable bounded job records
+         -> jobs.py            current-worker status and finite monitoring records
          -> blender_runtime.py owned Blender subprocess boundary
             -> execute_blender_job.py  fixed bpy operations inside Blender
 ```
@@ -36,9 +36,9 @@ allowlisted operation name, never Python source.
 
 ## Read and write separation
 
-Inspection, listing, comparison, job status, and character validation are reads.
+Inspection, listing, comparison, job status, and character content checks are reads.
 They do not initialize `.ceratops-blender` or repair state. Every state-changing
-tool is named as a production or lifecycle action and requires a request ID.
+tool is named as a production or lifecycle action and takes ordinary inputs.
 
 The server never resolves an implicit latest source version. Each dependent
 operation receives a `vNNNN` source. This makes retries and review decisions
@@ -47,43 +47,36 @@ shot or package.
 
 ## Version transaction
 
-1. Acquire the project file lock and reserve a never-used `vNNNN` directory.
-2. Write `request.json` with the exact operation, parent, request ID, and public
-   parameters.
-3. Run the fixed Blender or packaging producer directly into that directory.
-4. Hash every declared output.
-5. Write `record.json` last. Its presence is the completion boundary.
+1. Hold the project production lock, excluding live writers while inspecting output.
+2. Discard abandoned partial directories, then reuse an exact matching completed
+   operation, parent and parameter set if it remains active.
+3. Otherwise allocate a `vNNNN` directory and write the ordinary production facts.
+4. Run the fixed Blender or packaging producer into that directory.
+5. Record artifact sizes and content digests, then write `record.json` last.
 
-A failed producer writes `failure.json`; that version number is never reused.
-Completed artifacts and `record.json` are not overwritten. Promotion and
-archival are separate immutable event files, so lifecycle state never changes
-the version's bytes.
+Completed versions are immutable and never reused for different work. An
+unaccepted partial is disposable and its number may be reused after cleanup.
+Canonical completed artifacts and lifecycle state are the desired-state facts;
+failed job payloads and progress are never execution inputs.
 
-The project file lock serializes control-plane writes within cooperating server
-processes. It is not advertised as the future Ceratops OS process-group lock and
-does not make that unfinished infrastructure step real.
+## Current-worker monitoring
 
-## Jobs and recovery
+Each new operation gets a fresh UUID worker ID. Only a matching still-active
+operation shares that worker. The in-memory thread pool owns input payloads.
+Monitoring JSON contains status, times, result and bounded error text, with no
+saved operation payload or continuation entry point.
 
-The job ID is UUIDv5 over the initialized project ID and caller request ID. The
-job record binds that ID to a hash of the operation and payload. A duplicate
-request with the same payload returns the retained record; a conflicting payload
-fails before work starts.
+After a failed or interrupted operation, use the same normal production action
+with ordinary inputs. The service inspects actual completed output and starts
+unmet production from the beginning. An interrupted old worker remains terminal.
+There is no public job cancellation or continuation action.
 
-Queued and running jobs execute in a bounded local thread pool. Cancellation is
-cooperative and the Blender runtime terminates its owned process. Failed,
-cancelled, or interrupted jobs may resume under the same ID; the next attempt
-creates a new production version rather than rewriting the failed one. A job
-observed as `running` after an MCP server restart becomes `interrupted` because
-the new process has no owned future for it.
-
-Active jobs are never pruned. Terminal job history is capped at 100 records by
-default. This bounds producer-owned operational history; production versions and
-approval events have separate ownership and are not job-log cleanup targets.
+Active workers are not pruned; terminal monitoring history is capped at 100
+records. Production versions and approval events have separate business ownership.
 
 ## Review gates
 
-Promotion records a reviewer, notes, gate, and exact version. The server verifies
+Promotion records a reviewer, notes, gate, and exact version. The server checks
 that the version lineage contains both the production stage and its review
 artifact:
 
@@ -121,7 +114,6 @@ The producer prevents these states before work or completion:
 - unknown operation parameters;
 - missing exact sources or missing `.blend` evidence;
 - use of a source that has not passed its required review gate;
-- duplicate request IDs with different payloads;
 - implicit selection of latest assets during shot assembly or packaging;
 - promotion without the required stage and review lineage;
 - archival of a currently promoted version;
