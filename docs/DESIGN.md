@@ -72,7 +72,11 @@ unmet production from the beginning. An interrupted old worker remains terminal.
 There is no public job cancellation or continuation action.
 
 Active workers are not pruned; terminal monitoring history is capped at 100
-records. Production versions and approval events have separate business ownership.
+records, including abandoned workers found on first project access. Each worker's
+`.worker.lock` lives beside its monitoring record, covers queueing and execution,
+and is removed when the worker ends. Lock ownership protects live workers in
+other server instances; abandoned lock files are removed during pruning.
+Production versions and approval events have separate business ownership.
 
 ## Review gates
 

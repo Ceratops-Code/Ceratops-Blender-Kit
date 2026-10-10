@@ -397,3 +397,44 @@ def test_completed_output_reuse_discards_abandoned_partial_output(tmp_path: Path
     assert repeated["version"] == created["version"]
     assert not partial.exists()
     assert (versions / str(created["version"]) / "scene.blend").read_bytes() == original
+
+
+def test_abandoned_monitoring_is_bounded_and_other_live_workers_are_preserved(
+    tmp_path: Path,
+) -> None:
+    from ceratops_blender_mcp.jobs import JobManager
+
+    store = ProjectStore(tmp_path / "production")
+    project = store.initialize()
+    project["job_history_limit"] = 3
+    store.write_json(store.state_root / "project.json", project)
+    for index in range(7):
+        job_id = f"job_{index:032x}"
+        store.write_json(store.state_root / "jobs" / f"{job_id}.json", {
+            "job_id": job_id, "status": "running", "operation": "create_character",
+            "created_at": "2020-01-01T00:00:00Z", "updated_at": "2020-01-01T00:00:00Z",
+        })
+    owner, observer = JobManager(), JobManager()
+    started, finish = Event(), Event()
+
+    def execute(
+        _store: ProjectStore, _record: Mapping[str, object], _cancel: Event,
+    ) -> dict[str, object]:
+        started.set()
+        if not finish.wait(timeout=5):
+            raise AssertionError("test worker was not released")
+        return {"complete": True}
+
+    try:
+        current = owner.submit(store, operation="create_character", payload={}, executor=execute)
+        assert started.wait(timeout=3)
+        observer._prune(store)
+        assert observer.status(store, str(current["job_id"]))["status"] == "running"
+        assert len(list((store.state_root / "jobs").glob("*.json"))) == 4
+    finally:
+        finish.set()
+        owner._pool.shutdown(wait=True)
+        observer._pool.shutdown(wait=True)
+    observer._prune(store)
+    assert len(list((store.state_root / "jobs").glob("*.json"))) == 3
+    assert not list((store.state_root / "jobs").glob("*.worker.lock"))

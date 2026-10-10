@@ -1,4 +1,4 @@
-"""Persistent bounded job control for Blender and packaging operations."""
+"""Bounded current-worker monitoring for Blender and packaging operations."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
+
+from filelock import BaseFileLock, FileLock, Timeout
 
 from .storage import (
     DEFAULT_JOB_HISTORY_LIMIT,
@@ -52,6 +54,7 @@ class JobManager:
         """Start fresh work; identical active calls share only their live worker."""
 
         store.initialize()
+        self._prune(store)
         job_id = f"job_{uuid.uuid4().hex}"
         path = self._job_path(store, job_id)
         with self._guard, store.lock():
@@ -69,13 +72,24 @@ class JobManager:
                 "created_at": utc_now(),
                 "updated_at": utc_now(),
             }
-            store.write_json(path, record)
-            self._active[selection] = job_id
-            self._launch(store, job_id, executor, dict(payload), selection)
+            # The lock covers queueing and execution, including across server instances.
+            worker_lock = FileLock(str(path.with_suffix(".worker.lock")),
+                                   thread_local=False)
+            worker_lock.acquire(timeout=0)
+            try:
+                store.write_json(path, record)
+                self._active[selection] = job_id
+                self._launch(store, job_id, executor, dict(payload), selection, worker_lock)
+            except BaseException:
+                self._active.pop(selection, None)
+                worker_lock.release()
+                path.with_suffix(".worker.lock").unlink(missing_ok=True)
+                raise
         return self._public(record)
 
     def _launch(self, store: ProjectStore, job_id: str, executor: JobExecutor,
-                payload: dict[str, object], selection: tuple[str, str]) -> None:
+                payload: dict[str, object], selection: tuple[str, str],
+                worker_lock: BaseFileLock) -> None:
         key = self._key(store, job_id)
         with self._guard:
             current = self._futures.get(key)
@@ -84,7 +98,8 @@ class JobManager:
             cancellation = threading.Event()
             self._cancellations[key] = cancellation
             self._futures[key] = self._pool.submit(
-                self._run_job, store, job_id, executor, cancellation, payload, selection
+                self._run_job, store, job_id, executor, cancellation, payload, selection,
+                worker_lock
             )
 
     def _run_job(
@@ -95,6 +110,7 @@ class JobManager:
         cancellation: threading.Event,
         payload: dict[str, object],
         selection: tuple[str, str],
+        worker_lock: BaseFileLock,
     ) -> None:
         path = self._job_path(store, job_id)
         try:
@@ -140,6 +156,8 @@ class JobManager:
                 self._active.pop(selection, None)
                 self._futures.pop(self._key(store, job_id), None)
                 self._cancellations.pop(self._key(store, job_id), None)
+            worker_lock.release()
+            path.with_suffix(".worker.lock").unlink(missing_ok=True)
             self._prune(store)
 
     def status(self, store: ProjectStore, job_id: str) -> dict[str, object]:
@@ -148,22 +166,25 @@ class JobManager:
         path = self._job_path(store, job_id)
         if not path.is_file():
             raise ProductionError(f"job does not exist: {job_id}")
-        with store.lock():
+        with self._guard, store.lock():
             record = store.read_json(path)
-            if record.get("status") in {"queued", "running"}:
-                key = self._key(store, job_id)
-                with self._guard:
-                    future = self._futures.get(key)
-                if future is None:
-                    record.update(
-                        {
-                            "status": "interrupted",
-                            "error": "server process ended before the job reached a terminal state",
-                            "updated_at": utc_now(),
-                        }
-                    )
-                    store.write_json(path, record)
+            self._mark_abandoned(store, path, record)
         return self._public(record)
+
+    def _mark_abandoned(self, store: ProjectStore, path: Path, record: dict[str, Any]) -> None:
+        """Read only liveness locks; never use an old execution as work input."""
+        if (record.get("status") not in {"queued", "running"}
+                or self._key(store, str(record["job_id"])) in self._futures):
+            return
+        lock_path = path.with_suffix(".worker.lock")
+        try:
+            with FileLock(str(lock_path), timeout=0):
+                record.update(status="interrupted", finished_at=utc_now(), updated_at=utc_now(),
+                              error="worker ended before reaching a terminal state")
+                store.write_json(path, record)
+            lock_path.unlink(missing_ok=True)
+        except Timeout:
+            pass
 
     def _prune(self, store: ProjectStore) -> None:
         """Bound completed operational history; active job records are never pruned."""
@@ -173,15 +194,27 @@ class JobManager:
         jobs_root = store.state_root / "jobs"
         if not jobs_root.is_dir():
             return
-        with store.lock():
+        with self._guard, store.lock():
             terminal: list[tuple[str, Path]] = []
             for path in jobs_root.glob("job_*.json"):
                 record = store.read_json(path)
+                self._mark_abandoned(store, path, record)
                 if record.get("status") in TERMINAL_STATES:
                     terminal.append((str(record.get("updated_at", "")), path))
             terminal.sort(reverse=True)
             for _, path in terminal[limit:]:
                 path.unlink(missing_ok=True)
+
+        # An interrupted initial write may leave a lock without a monitoring record.
+        for lock_path in jobs_root.glob("job_*.worker.lock"):
+            record_path = lock_path.with_name(lock_path.name.removesuffix(".worker.lock") + ".json")
+            if not record_path.exists():
+                try:
+                    with FileLock(str(lock_path), timeout=0):
+                        pass
+                    lock_path.unlink(missing_ok=True)
+                except Timeout:
+                    pass
 
     @staticmethod
     def _public(record: Mapping[str, Any]) -> dict[str, object]:
