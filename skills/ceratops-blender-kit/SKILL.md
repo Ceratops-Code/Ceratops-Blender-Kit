@@ -19,12 +19,11 @@ facial-expression, and animation review gates for the user's decision.
   not send arbitrary Python through this server.
 - Start with `inspect_project` and `list_assets`. Reads must not initialize or
   repair a project.
-- For every write, create a short lowercase `request_id` tied to the concrete
-  action and target. Reuse it only for a retry of the exact same inputs.
+- Supply the desired operation, exact source version, and output parameters.
+  A fresh call checks completed production outputs and reuses a matching output.
 - Pass exact `vNNNN` source versions. Never infer or substitute “latest.”
-- Treat a returned job ID as the durable identity. Poll `get_job_status` until
-  it is terminal. Use `resume_job` only for `failed`, `cancelled`, or
-  `interrupted`; it preserves the job ID and creates a fresh output version.
+- Use a returned worker ID only with `get_job_status` to observe that worker's
+  liveness, result, or error. It is never input to a production write.
 - Never continue from a failed or incomplete version. Never archive a promoted
   version until another version has replaced every gate that points to it.
 - Do not call `render_shot_final` before animation approval, or package work
@@ -55,7 +54,7 @@ facial-expression, and animation review gates for the user's decision.
    when a review needs a concrete change summary. Call `package_asset` only for
    the exact accepted version.
 
-If a review fails, continue from the last intended source with a new request ID.
+If a review fails, choose the intended source version and changed output parameters.
 Do not alter or relabel the rejected version; archive it only when the user wants
 it removed from the active set.
 
@@ -77,10 +76,10 @@ it removed from the active set.
 
 ## Job failures
 
-- `failed`: report the bounded error, correct only the input or environment that
-  caused it, then call `resume_job` when the same request remains valid.
-- `cancelled`: resume only if the user still wants the exact request.
-- `interrupted`: verify Blender is available, then resume the same job.
+- Report the exact failed or interrupted step and bounded error, and correct
+  its cause within the active execution request. Production operations always
+  start through their normal entry point using current project and artifact
+  state; no old worker or saved execution progress is consumed.
 - A missing Blender binary requires setting `CERATOPS_BLENDER_EXECUTABLE`; do not
   install Blender or change machine-wide configuration without a separate
   request.
@@ -90,5 +89,5 @@ it removed from the active set.
 Report the exact character, shot, or delivery versions created; the review gates
 approved or still pending; and any failed, cancelled, or interrupted job that
 still needs action. Do not claim artistic approval from a successful render or
-validation result—the reviewer supplies approval, and `promote_version` records
+check result—the reviewer supplies approval, and `promote_version` records
 it.

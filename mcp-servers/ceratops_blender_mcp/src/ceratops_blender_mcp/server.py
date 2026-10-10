@@ -73,7 +73,6 @@ def promote_version(
     version: str,
     gate: str,
     reviewer: str,
-    request_id: str,
     notes: str = "",
 ) -> dict[str, object]:
     """Approve an exact version at a named review gate without changing its bytes."""
@@ -85,7 +84,6 @@ def promote_version(
         version=version,
         gate=gate,
         reviewer=reviewer,
-        request_id=request_id,
         notes=notes,
     )
 
@@ -96,7 +94,6 @@ def archive_version(
     asset_type: str,
     asset_id: str,
     version: str,
-    request_id: str,
     reason: str,
 ) -> dict[str, object]:
     """Archive an unpromoted version while retaining every file and record."""
@@ -106,7 +103,6 @@ def archive_version(
         asset_type=asset_type,
         asset_id=asset_id,
         version=version,
-        request_id=request_id,
         reason=reason,
     )
 
@@ -116,7 +112,6 @@ def import_character_reference(
     project_root: str,
     character_id: str,
     reference_files: list[str],
-    request_id: str,
 ) -> dict[str, object]:
     """Copy reference images or files into a new immutable character version."""
 
@@ -124,7 +119,6 @@ def import_character_reference(
         project_root,
         character_id=character_id,
         reference_files=reference_files,
-        request_id=request_id,
     )
 
 
@@ -132,7 +126,6 @@ def import_character_reference(
 def create_character(
     project_root: str,
     character_id: str,
-    request_id: str,
     reference_version: str | None = None,
     height_m: float = 1.75,
     style: str = "stylized",
@@ -144,7 +137,6 @@ def create_character(
         project_root,
         operation="create_character",
         entity_id=character_id,
-        request_id=request_id,
         source_version=reference_version,
         parameters={"height_m": height_m, "style": style, "body_type": body_type},
     )
@@ -155,7 +147,6 @@ def create_character_mesh(
     project_root: str,
     character_id: str,
     source_version: str,
-    request_id: str,
     subdivision_levels: int = 1,
 ) -> dict[str, object]:
     """Create a mesh version from one exact character version."""
@@ -164,7 +155,6 @@ def create_character_mesh(
         project_root,
         operation="create_character_mesh",
         entity_id=character_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"subdivision_levels": subdivision_levels},
     )
@@ -175,7 +165,6 @@ def retopologize_character(
     project_root: str,
     character_id: str,
     source_version: str,
-    request_id: str,
     target_faces: int = 12000,
 ) -> dict[str, object]:
     """Create a non-destructive retopology version with a target face budget."""
@@ -184,7 +173,6 @@ def retopologize_character(
         project_root,
         operation="retopologize_character",
         entity_id=character_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"target_faces": target_faces},
     )
@@ -195,7 +183,6 @@ def create_uv_and_materials(
     project_root: str,
     character_id: str,
     source_version: str,
-    request_id: str,
     base_color: list[float] | None = None,
     roughness: float = 0.5,
 ) -> dict[str, object]:
@@ -205,7 +192,6 @@ def create_uv_and_materials(
         project_root,
         operation="create_uv_and_materials",
         entity_id=character_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"base_color": base_color or [0.45, 0.18, 0.12, 1.0], "roughness": roughness},
     )
@@ -216,7 +202,6 @@ def groom_character(
     project_root: str,
     character_id: str,
     source_version: str,
-    request_id: str,
     style: str = "short",
     strand_count: int = 24,
 ) -> dict[str, object]:
@@ -226,7 +211,6 @@ def groom_character(
         project_root,
         operation="groom_character",
         entity_id=character_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"style": style, "strand_count": strand_count},
     )
@@ -237,7 +221,6 @@ def rig_character(
     project_root: str,
     character_id: str,
     source_version: str,
-    request_id: str,
     rig_type: str = "biped",
 ) -> dict[str, object]:
     """Create a rig from a groom-approved exact source version."""
@@ -246,7 +229,6 @@ def rig_character(
         project_root,
         operation="rig_character",
         entity_id=character_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"rig_type": rig_type},
     )
@@ -257,7 +239,6 @@ def build_face_rig(
     project_root: str,
     character_id: str,
     source_version: str,
-    request_id: str,
     blendshape_set: str = "basic",
 ) -> dict[str, object]:
     """Create facial shape keys from a rig-approved exact source version."""
@@ -266,7 +247,6 @@ def build_face_rig(
         project_root,
         operation="build_face_rig",
         entity_id=character_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"blendshape_set": blendshape_set},
     )
@@ -277,7 +257,6 @@ def render_character_review(
     project_root: str,
     character_id: str,
     source_version: str,
-    request_id: str,
     resolution_x: int = 960,
     resolution_y: int = 960,
     angle_count: int = 1,
@@ -288,7 +267,6 @@ def render_character_review(
         project_root,
         operation="render_character_review",
         entity_id=character_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={
             "resolution_x": resolution_x,
@@ -309,7 +287,6 @@ def validate_character(project_root: str, character_id: str, version: str) -> di
 def create_shot(
     project_root: str,
     shot_id: str,
-    request_id: str,
     frame_start: int = 1,
     frame_end: int = 120,
     fps: int = 24,
@@ -320,7 +297,6 @@ def create_shot(
         project_root,
         operation="create_shot",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=None,
         parameters={"frame_start": frame_start, "frame_end": frame_end, "fps": fps},
     )
@@ -332,7 +308,6 @@ def assemble_shot(
     shot_id: str,
     source_version: str,
     asset_versions: dict[str, str],
-    request_id: str,
 ) -> dict[str, object]:
     """Assemble exact character versions into a new shot version."""
 
@@ -340,7 +315,6 @@ def assemble_shot(
         project_root,
         operation="assemble_shot",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"asset_versions": asset_versions},
     )
@@ -351,7 +325,6 @@ def setup_camera(
     project_root: str,
     shot_id: str,
     source_version: str,
-    request_id: str,
     lens_mm: float = 50.0,
     position: list[float] | None = None,
     target: list[float] | None = None,
@@ -362,7 +335,6 @@ def setup_camera(
         project_root,
         operation="setup_camera",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={
             "lens_mm": lens_mm,
@@ -377,7 +349,6 @@ def light_shot(
     project_root: str,
     shot_id: str,
     source_version: str,
-    request_id: str,
     preset: str = "three_point",
     intensity: float = 1000.0,
 ) -> dict[str, object]:
@@ -387,7 +358,6 @@ def light_shot(
         project_root,
         operation="light_shot",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"preset": preset, "intensity": intensity},
     )
@@ -398,7 +368,6 @@ def animate_shot(
     project_root: str,
     shot_id: str,
     source_version: str,
-    request_id: str,
     motion: str = "blocking",
     interpolation: str = "BEZIER",
 ) -> dict[str, object]:
@@ -408,7 +377,6 @@ def animate_shot(
         project_root,
         operation="animate_shot",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"motion": motion, "interpolation": interpolation},
     )
@@ -420,7 +388,6 @@ def sync_lips(
     shot_id: str,
     source_version: str,
     cues: list[dict[str, Any]],
-    request_id: str,
 ) -> dict[str, object]:
     """Apply explicit frame/value mouth cues to an exact shot version."""
 
@@ -428,7 +395,6 @@ def sync_lips(
         project_root,
         operation="sync_lips",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"cues": cues},
     )
@@ -439,7 +405,6 @@ def add_secondary_motion(
     project_root: str,
     shot_id: str,
     source_version: str,
-    request_id: str,
     strength: float = 0.25,
 ) -> dict[str, object]:
     """Add bounded procedural secondary motion in a new shot version."""
@@ -448,7 +413,6 @@ def add_secondary_motion(
         project_root,
         operation="add_secondary_motion",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={"strength": strength},
     )
@@ -459,7 +423,6 @@ def render_shot_preview(
     project_root: str,
     shot_id: str,
     source_version: str,
-    request_id: str,
     resolution_x: int = 960,
     resolution_y: int = 540,
     frame_start: int = 1,
@@ -471,7 +434,6 @@ def render_shot_preview(
         project_root,
         operation="render_shot_preview",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={
             "resolution_x": resolution_x,
@@ -487,7 +449,6 @@ def render_shot_final(
     project_root: str,
     shot_id: str,
     source_version: str,
-    request_id: str,
     resolution_x: int = 1920,
     resolution_y: int = 1080,
     frame_start: int = 1,
@@ -499,7 +460,6 @@ def render_shot_final(
         project_root,
         operation="render_shot_final",
         entity_id=shot_id,
-        request_id=request_id,
         source_version=source_version,
         parameters={
             "resolution_x": resolution_x,
@@ -516,7 +476,6 @@ def package_asset(
     asset_type: str,
     asset_id: str,
     version: str,
-    request_id: str,
 ) -> dict[str, object]:
     """Package one exact character or shot version into a versioned ZIP."""
 
@@ -525,7 +484,6 @@ def package_asset(
         asset_type=asset_type,
         asset_id=asset_id,
         version=version,
-        request_id=request_id,
     )
 
 
@@ -534,7 +492,6 @@ def package_episode(
     project_root: str,
     episode_id: str,
     shot_versions: dict[str, str],
-    request_id: str,
 ) -> dict[str, object]:
     """Package caller-selected exact shot versions into a versioned episode ZIP."""
 
@@ -542,7 +499,6 @@ def package_episode(
         project_root,
         episode_id=episode_id,
         shot_versions=shot_versions,
-        request_id=request_id,
     )
 
 
@@ -551,17 +507,3 @@ def get_job_status(project_root: str, job_id: str) -> dict[str, object]:
     """Read the persistent status and result of a long production job."""
 
     return service.get_job_status(project_root, job_id=job_id)
-
-
-@mcp.tool()
-def cancel_job(project_root: str, job_id: str) -> dict[str, object]:
-    """Request cancellation of an exact queued or running production job."""
-
-    return service.cancel_job(project_root, job_id=job_id)
-
-
-@mcp.tool()
-def resume_job(project_root: str, job_id: str) -> dict[str, object]:
-    """Resume failed, cancelled, or interrupted work under the same stable job ID."""
-
-    return service.resume_job(project_root, job_id=job_id)

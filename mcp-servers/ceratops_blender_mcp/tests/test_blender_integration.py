@@ -28,7 +28,6 @@ def run_operation(
     *,
     operation: str,
     entity_id: str,
-    request_id: str,
     source_version: str | None,
     parameters: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -36,7 +35,6 @@ def run_operation(
         str(project),
         operation=operation,
         entity_id=entity_id,
-        request_id=request_id,
         source_version=source_version,
         parameters=parameters,
     )
@@ -56,7 +54,6 @@ def test_real_blender_creates_a_versioned_character(tmp_path: Path) -> None:
         str(project),
         operation="create_character",
         entity_id="smoke-hero",
-        request_id="smoke-character",
         source_version=None,
         parameters={"height_m": 1.75, "style": "stylized", "body_type": "neutral"},
     )
@@ -88,7 +85,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="create_character",
         entity_id="hero",
-        request_id="character-blockout",
         source_version=None,
         parameters={"height_m": 1.75, "style": "stylized", "body_type": "neutral"},
     )
@@ -97,7 +93,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="create_character_mesh",
         entity_id="hero",
-        request_id="character-mesh",
         source_version=str(character["version"]),
         parameters={"subdivision_levels": 1},
     )
@@ -106,7 +101,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="retopologize_character",
         entity_id="hero",
-        request_id="character-retopo",
         source_version=str(character["version"]),
         parameters={"target_faces": 8000},
     )
@@ -115,7 +109,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="create_uv_and_materials",
         entity_id="hero",
-        request_id="character-lookdev",
         source_version=str(character["version"]),
         parameters={"base_color": [0.4, 0.15, 0.1, 1.0], "roughness": 0.5},
     )
@@ -124,7 +117,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="render_character_review",
         entity_id="hero",
-        request_id="appearance-review",
         source_version=str(character["version"]),
         parameters={"resolution_x": 64, "resolution_y": 64, "angle_count": 1},
     )
@@ -135,14 +127,12 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         version=str(appearance_review["version"]),
         gate="appearance",
         reviewer="integration-test",
-        request_id="approve-appearance",
     )
     groom = run_operation(
         service,
         project,
         operation="groom_character",
         entity_id="hero",
-        request_id="character-groom",
         source_version=str(appearance_review["version"]),
         parameters={"style": "short", "strand_count": 8},
     )
@@ -151,7 +141,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="render_character_review",
         entity_id="hero",
-        request_id="groom-review",
         source_version=str(groom["version"]),
         parameters={"resolution_x": 64, "resolution_y": 64, "angle_count": 1},
     )
@@ -162,14 +151,12 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         version=str(groom_review["version"]),
         gate="groom",
         reviewer="integration-test",
-        request_id="approve-groom",
     )
     rig = run_operation(
         service,
         project,
         operation="rig_character",
         entity_id="hero",
-        request_id="character-rig",
         source_version=str(groom_review["version"]),
         parameters={"rig_type": "biped"},
     )
@@ -178,7 +165,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="render_character_review",
         entity_id="hero",
-        request_id="rig-review",
         source_version=str(rig["version"]),
         parameters={"resolution_x": 64, "resolution_y": 64, "angle_count": 1},
     )
@@ -189,14 +175,12 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         version=str(rig_review["version"]),
         gate="rig",
         reviewer="integration-test",
-        request_id="approve-rig",
     )
     face = run_operation(
         service,
         project,
         operation="build_face_rig",
         entity_id="hero",
-        request_id="character-face-rig",
         source_version=str(rig_review["version"]),
         parameters={"blendshape_set": "basic"},
     )
@@ -205,7 +189,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="render_character_review",
         entity_id="hero",
-        request_id="face-review",
         source_version=str(face["version"]),
         parameters={"resolution_x": 64, "resolution_y": 64, "angle_count": 1},
     )
@@ -216,7 +199,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         version=str(face_review["version"]),
         gate="facial_expression",
         reviewer="integration-test",
-        request_id="approve-face",
     )
     assert (
         service.validate_character(
@@ -230,7 +212,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="create_shot",
         entity_id="shot-010",
-        request_id="shot-layout",
         source_version=None,
         parameters={"frame_start": 1, "frame_end": 2, "fps": 24},
     )
@@ -239,7 +220,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="assemble_shot",
         entity_id="shot-010",
-        request_id="shot-assembly",
         source_version=str(shot["version"]),
         parameters={"asset_versions": {"hero": str(face_review["version"])}},
     )
@@ -248,7 +228,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="setup_camera",
         entity_id="shot-010",
-        request_id="shot-camera",
         source_version=str(shot["version"]),
         parameters={"lens_mm": 50.0, "position": [4.0, -6.0, 3.0], "target": [0.0, 0.0, 1.0]},
     )
@@ -257,7 +236,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="light_shot",
         entity_id="shot-010",
-        request_id="shot-light",
         source_version=str(shot["version"]),
         parameters={"preset": "three_point", "intensity": 500.0},
     )
@@ -266,7 +244,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="animate_shot",
         entity_id="shot-010",
-        request_id="shot-animation",
         source_version=str(shot["version"]),
         parameters={"motion": "blocking", "interpolation": "BEZIER"},
     )
@@ -275,7 +252,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="sync_lips",
         entity_id="shot-010",
-        request_id="shot-lips",
         source_version=str(shot["version"]),
         parameters={"cues": [{"frame": 1, "value": 0.0}, {"frame": 2, "value": 1.0}]},
     )
@@ -284,7 +260,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="add_secondary_motion",
         entity_id="shot-010",
-        request_id="shot-secondary",
         source_version=str(shot["version"]),
         parameters={"strength": 0.1},
     )
@@ -293,7 +268,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         project,
         operation="render_shot_preview",
         entity_id="shot-010",
-        request_id="shot-preview",
         source_version=str(shot["version"]),
         parameters={"resolution_x": 64, "resolution_y": 64, "frame_start": 1, "frame_end": 2},
     )
@@ -304,14 +278,12 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         version=str(preview["version"]),
         gate="animation",
         reviewer="integration-test",
-        request_id="approve-animation",
     )
     final = run_operation(
         service,
         project,
         operation="render_shot_final",
         entity_id="shot-010",
-        request_id="shot-final",
         source_version=str(preview["version"]),
         parameters={"resolution_x": 64, "resolution_y": 64, "frame_start": 1, "frame_end": 2},
     )
@@ -319,7 +291,6 @@ def test_real_blender_character_and_shot_pipeline(tmp_path: Path) -> None:
         str(project),
         episode_id="episode-001",
         shot_versions={"shot-010": str(final["version"])},
-        request_id="package-episode",
     )
     packaged = wait_for_job(service, project, str(package["job_id"]))
     assert packaged["status"] == "completed", packaged

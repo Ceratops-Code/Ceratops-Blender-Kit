@@ -38,8 +38,6 @@ EXPECTED_TOOLS = {
     "package_asset",
     "package_episode",
     "get_job_status",
-    "cancel_job",
-    "resume_job",
 }
 
 
@@ -47,6 +45,7 @@ def test_server_exposes_the_complete_v1_tool_contract() -> None:
     tools = asyncio.run(mcp.list_tools())
 
     assert {tool.name for tool in tools} == EXPECTED_TOOLS
+    assert all("request_id" not in tool.input_schema.get("properties", {}) for tool in tools)
 
 
 def test_deployment_check_reports_exact_release_identity(

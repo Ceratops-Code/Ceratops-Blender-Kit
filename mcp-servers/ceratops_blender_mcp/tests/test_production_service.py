@@ -58,7 +58,6 @@ def submit_and_wait(
     *,
     operation: str,
     entity_id: str,
-    request_id: str,
     source_version: str | None,
     parameters: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -66,7 +65,6 @@ def submit_and_wait(
         str(project),
         operation=operation,
         entity_id=entity_id,
-        request_id=request_id,
         source_version=source_version,
         parameters=parameters,
     )
@@ -85,7 +83,7 @@ def test_reads_do_not_initialize_a_project(tmp_path: Path) -> None:
     assert not project.exists()
 
 
-def test_stable_job_id_and_immutable_versions(tmp_path: Path) -> None:
+def test_repeated_desired_state_reuses_immutable_versions(tmp_path: Path) -> None:
     project = tmp_path / "production"
     runtime = RecordingBlenderRuntime()
     service = ProductionService(blender=runtime)
@@ -94,7 +92,6 @@ def test_stable_job_id_and_immutable_versions(tmp_path: Path) -> None:
         str(project),
         operation="create_character",
         entity_id="hero",
-        request_id="hero-blockout",
         source_version=None,
         parameters={"height_m": 1.8, "style": "stylized", "body_type": "neutral"},
     )
@@ -102,11 +99,11 @@ def test_stable_job_id_and_immutable_versions(tmp_path: Path) -> None:
         str(project),
         operation="create_character",
         entity_id="hero",
-        request_id="hero-blockout",
         source_version=None,
         parameters={"height_m": 1.8, "style": "stylized", "body_type": "neutral"},
     )
-    assert first["job_id"] == repeated["job_id"]
+    repeated_result = wait_for_job(service, project, str(repeated["job_id"]))
+    assert repeated_result["status"] == "completed"
     first_result = wait_for_job(service, project, str(first["job_id"]))
     assert first_result["status"] == "completed"
     assert first_result["result"]["version"] == "v0001"
@@ -119,7 +116,6 @@ def test_stable_job_id_and_immutable_versions(tmp_path: Path) -> None:
         project,
         operation="create_character_mesh",
         entity_id="hero",
-        request_id="hero-mesh",
         source_version="v0001",
         parameters={"subdivision_levels": 1},
     )
@@ -147,7 +143,6 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
         project,
         operation="create_character",
         entity_id="hero",
-        request_id="blockout",
         source_version=None,
         parameters={"height_m": 1.75},
     )
@@ -156,7 +151,6 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
         project,
         operation="create_character_mesh",
         entity_id="hero",
-        request_id="mesh",
         source_version=str(blockout["version"]),
     )
     lookdev = submit_and_wait(
@@ -164,7 +158,6 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
         project,
         operation="create_uv_and_materials",
         entity_id="hero",
-        request_id="lookdev",
         source_version=str(mesh["version"]),
     )
 
@@ -173,7 +166,6 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
             str(project),
             operation="groom_character",
             entity_id="hero",
-            request_id="groom-too-soon",
             source_version=str(lookdev["version"]),
         )
 
@@ -182,7 +174,6 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
         project,
         operation="render_character_review",
         entity_id="hero",
-        request_id="appearance-review",
         source_version=str(lookdev["version"]),
     )
     service.promote_version(
@@ -192,14 +183,12 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
         version=str(review["version"]),
         gate="appearance",
         reviewer="art-director",
-        request_id="approve-appearance",
     )
     replacement_review = submit_and_wait(
         service,
         project,
         operation="render_character_review",
         entity_id="hero",
-        request_id="appearance-review-replacement",
         source_version=str(lookdev["version"]),
     )
     service.promote_version(
@@ -209,7 +198,6 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
         version=str(replacement_review["version"]),
         gate="appearance",
         reviewer="art-director",
-        request_id="approve-appearance-replacement",
     )
     state = service.inspect_asset(str(project), asset_type="character", asset_id="hero")
     assert state["promoted_versions"]["appearance"] == replacement_review["version"]
@@ -218,7 +206,6 @@ def test_review_gates_control_downstream_character_work(tmp_path: Path) -> None:
         project,
         operation="groom_character",
         entity_id="hero",
-        request_id="groom",
         source_version=str(replacement_review["version"]),
     )
     assert groom["stage"] == "groom"
@@ -232,7 +219,6 @@ def test_archive_retains_files_but_hides_active_version(tmp_path: Path) -> None:
         project,
         operation="create_character",
         entity_id="hero",
-        request_id="blockout",
         source_version=None,
     )
     service.archive_version(
@@ -240,7 +226,6 @@ def test_archive_retains_files_but_hides_active_version(tmp_path: Path) -> None:
         asset_type="character",
         asset_id="hero",
         version=str(created["version"]),
-        request_id="archive-blockout",
         reason="superseded concept",
     )
 
@@ -262,7 +247,6 @@ def test_package_uses_exact_selected_asset_version(tmp_path: Path) -> None:
         project,
         operation="create_character",
         entity_id="hero",
-        request_id="blockout",
         source_version=None,
     )
     package = service.package_asset(
@@ -270,7 +254,6 @@ def test_package_uses_exact_selected_asset_version(tmp_path: Path) -> None:
         asset_type="character",
         asset_id="hero",
         version=str(created["version"]),
-        request_id="package-hero",
     )
     completed = wait_for_job(service, project, str(package["job_id"]))
 
@@ -296,7 +279,6 @@ def test_shot_final_requires_animation_review(tmp_path: Path) -> None:
         project,
         operation="create_character",
         entity_id="hero",
-        request_id="hero-blockout",
         source_version=None,
     )
     shot = submit_and_wait(
@@ -304,7 +286,6 @@ def test_shot_final_requires_animation_review(tmp_path: Path) -> None:
         project,
         operation="create_shot",
         entity_id="shot-010",
-        request_id="shot-layout",
         source_version=None,
         parameters={"frame_start": 1, "frame_end": 12, "fps": 24},
     )
@@ -313,7 +294,6 @@ def test_shot_final_requires_animation_review(tmp_path: Path) -> None:
         project,
         operation="assemble_shot",
         entity_id="shot-010",
-        request_id="shot-assembly",
         source_version=str(shot["version"]),
         parameters={"asset_versions": {"hero": str(character["version"])}},
     )
@@ -322,7 +302,6 @@ def test_shot_final_requires_animation_review(tmp_path: Path) -> None:
         project,
         operation="animate_shot",
         entity_id="shot-010",
-        request_id="shot-animation",
         source_version=str(assembled["version"]),
     )
     preview = submit_and_wait(
@@ -330,7 +309,6 @@ def test_shot_final_requires_animation_review(tmp_path: Path) -> None:
         project,
         operation="render_shot_preview",
         entity_id="shot-010",
-        request_id="shot-preview",
         source_version=str(animated["version"]),
         parameters={"frame_start": 1, "frame_end": 12},
     )
@@ -340,7 +318,6 @@ def test_shot_final_requires_animation_review(tmp_path: Path) -> None:
             str(project),
             operation="render_shot_final",
             entity_id="shot-010",
-            request_id="shot-final-too-soon",
             source_version=str(preview["version"]),
         )
 
@@ -351,37 +328,113 @@ def test_shot_final_requires_animation_review(tmp_path: Path) -> None:
         version=str(preview["version"]),
         gate="animation",
         reviewer="director",
-        request_id="approve-animation",
     )
     final = submit_and_wait(
         service,
         project,
         operation="render_shot_final",
         entity_id="shot-010",
-        request_id="shot-final",
         source_version=str(preview["version"]),
         parameters={"frame_start": 1, "frame_end": 12},
     )
     assert final["stage"] == "final_render"
 
 
-def test_resume_keeps_job_id_and_creates_a_fresh_version(tmp_path: Path) -> None:
+def test_fresh_call_after_failure_needs_no_previous_job(tmp_path: Path) -> None:
     project = tmp_path / "production"
     service = ProductionService(blender=FailingOnceRuntime())
     submitted = service.submit_operation(
         str(project),
         operation="create_character",
         entity_id="hero",
-        request_id="hero-blockout",
         source_version=None,
     )
     failed = wait_for_job(service, project, str(submitted["job_id"]))
     assert failed["status"] == "failed"
 
-    resumed = service.resume_job(str(project), job_id=str(submitted["job_id"]))
-    assert resumed["job_id"] == submitted["job_id"]
-    completed = wait_for_job(service, project, str(submitted["job_id"]))
+    # Remove monitoring history: the next invocation cannot consume it.
+    (project / ".ceratops-blender" / "jobs" / f"{submitted['job_id']}.json").unlink()
+    service = ProductionService(blender=service.blender)
+    fresh = service.submit_operation(str(project), operation="create_character",
+                                     entity_id="hero", source_version=None)
+    assert fresh["job_id"] != submitted["job_id"]
+    completed = wait_for_job(service, project, str(fresh["job_id"]))
 
     assert completed["status"] == "completed"
-    assert completed["attempts"] == 2
-    assert completed["result"]["version"] == "v0002"
+    assert completed["result"]["version"] == "v0001"
+    assert "payload" not in ProjectStore.read_json(
+        project / ".ceratops-blender" / "jobs" / f"{fresh['job_id']}.json")
+
+
+
+def test_promotion_tracks_current_gate_state_when_an_older_version_is_selected_again(
+    tmp_path: Path,
+) -> None:
+    store = ProjectStore(tmp_path / "production")
+    first = {"event": "promote", "gate": "appearance", "version": "v0001", "reviewer": "director"}
+    second = {**first, "version": "v0002"}
+    initial = store.append_event("character", "hero", payload=first)
+    assert store.append_event("character", "hero", payload=first) == initial
+    store.append_event("character", "hero", payload=second)
+    selected = store.append_event("character", "hero", payload=first)
+    assert selected["event_id"] != initial["event_id"]
+    assert store.entity_state("character", "hero")["promoted_versions"]["appearance"] == "v0001"
+
+
+def test_completed_output_reuse_discards_abandoned_partial_output(tmp_path: Path) -> None:
+    project = tmp_path / "production"
+    service = ProductionService(blender=RecordingBlenderRuntime())
+    created = submit_and_wait(service, project, operation="create_character",
+                              entity_id="hero", source_version=None)
+    versions = project / ".ceratops-blender" / "characters" / "hero" / "versions"
+    original = (versions / str(created["version"]) / "scene.blend").read_bytes()
+    partial = versions / "v0002"
+    partial.mkdir()
+    (partial / "request.json").write_text('{"operation":"interrupted"}', encoding="utf-8")
+    (partial / "incomplete.blend").write_bytes(b"incomplete output")
+    repeated = submit_and_wait(service, project, operation="create_character",
+                               entity_id="hero", source_version=None)
+    assert repeated["version"] == created["version"]
+    assert not partial.exists()
+    assert (versions / str(created["version"]) / "scene.blend").read_bytes() == original
+
+
+def test_abandoned_monitoring_is_bounded_and_other_live_workers_are_preserved(
+    tmp_path: Path,
+) -> None:
+    from ceratops_blender_mcp.jobs import JobManager
+
+    store = ProjectStore(tmp_path / "production")
+    project = store.initialize()
+    project["job_history_limit"] = 3
+    store.write_json(store.state_root / "project.json", project)
+    for index in range(7):
+        job_id = f"job_{index:032x}"
+        store.write_json(store.state_root / "jobs" / f"{job_id}.json", {
+            "job_id": job_id, "status": "running", "operation": "create_character",
+            "created_at": "2020-01-01T00:00:00Z", "updated_at": "2020-01-01T00:00:00Z",
+        })
+    owner, observer = JobManager(), JobManager()
+    started, finish = Event(), Event()
+
+    def execute(
+        _store: ProjectStore, _record: Mapping[str, object], _cancel: Event,
+    ) -> dict[str, object]:
+        started.set()
+        if not finish.wait(timeout=5):
+            raise AssertionError("test worker was not released")
+        return {"complete": True}
+
+    try:
+        current = owner.submit(store, operation="create_character", payload={}, executor=execute)
+        assert started.wait(timeout=3)
+        observer._prune(store)
+        assert observer.status(store, str(current["job_id"]))["status"] == "running"
+        assert len(list((store.state_root / "jobs").glob("*.json"))) == 4
+    finally:
+        finish.set()
+        owner._pool.shutdown(wait=True)
+        observer._pool.shutdown(wait=True)
+    observer._prune(store)
+    assert len(list((store.state_root / "jobs").glob("*.json"))) == 3
+    assert not list((store.state_root / "jobs").glob("*.worker.lock"))

@@ -240,7 +240,6 @@ class ProjectStore:
         *,
         operation: str,
         parent_version: str | None,
-        request_id: str,
         parameters: Mapping[str, object],
     ) -> tuple[str, Path]:
         """Reserve a never-reused version and record its exact production request."""
@@ -250,6 +249,24 @@ class ProjectStore:
         versions = entity / "versions"
         with self.lock():
             state = self.entity_state(entity_type, entity_id)
+            # The production lock excludes live writers. Discard all abandoned
+            # partials even when a completed output already satisfies the request.
+            if versions.is_dir():
+                for partial in versions.iterdir():
+                    if (partial.is_dir() and VERSION_RE.fullmatch(partial.name)
+                            and not (partial / "record.json").exists()):
+                        if (partial.is_symlink() or partial.is_junction()
+                                or not partial.resolve().is_relative_to(versions.resolve())):
+                            raise ProductionError("partial version must stay inside its owner")
+                        shutil.rmtree(partial)
+            # Match desired output facts, never an earlier worker or failed stage.
+            for record in state["versions"]:
+                if (record.get("version") not in state["archived_versions"]
+                        and record.get("operation") == operation
+                        and record.get("parent_version") == parent_version
+                        and record.get("parameters") == dict(parameters)):
+                    version = str(record["version"])
+                    return version, self.version_root(entity_type, entity_id, version)
             archived = set(state["archived_versions"])
             active = [
                 record for record in state["versions"] if record.get("version") not in archived
@@ -277,7 +294,6 @@ class ProjectStore:
                 "version": version,
                 "operation": operation,
                 "parent_version": parent_version,
-                "request_id": request_id,
                 "parameters": dict(parameters),
                 "created_at": utc_now(),
             }
@@ -338,36 +354,36 @@ class ProjectStore:
         entity_type: str,
         entity_id: str,
         *,
-        request_id: str,
         payload: Mapping[str, object],
     ) -> dict[str, object]:
         """Write one idempotent immutable lifecycle event."""
 
-        require_identifier(request_id, "request_id")
         self.initialize()
-        event_id = payload_hash({"entity": entity_id, "request_id": request_id})[:20]
         events_root = self.entity_root(entity_type, entity_id) / "events"
         with self.lock():
             existing_paths = sorted(events_root.glob("*.json")) if events_root.is_dir() else []
-            for existing_path in existing_paths:
+            coordinate = "gate" if payload.get("event") == "promote" else "version"
+            for existing_path in reversed(existing_paths):
                 existing = self.read_json(existing_path)
-                if existing.get("request_id") != request_id:
-                    continue
-                if any(existing.get(key) != value for key, value in payload.items()):
-                    raise ProductionError("request_id is already bound to a different event")
-                return existing
+                if (existing.get("event") == payload.get("event")
+                        and existing.get(coordinate) == payload.get(coordinate)):
+                    if all(existing.get(key) == value for key, value in payload.items()):
+                        return existing
+                    break
             sequences = []
             for existing_path in existing_paths:
                 prefix = existing_path.name.split("-", 1)[0]
                 if prefix.isdigit():
                     sequences.append(int(prefix))
             sequence = max(sequences, default=0) + 1
+            event_id = payload_hash(
+                {"entity": entity_id, "sequence": sequence, "payload": payload}
+            )[:20]
             path = events_root / f"{sequence:08d}-{event_id}.json"
             record = {
                 "schema": "ceratops-blender-event.v1",
                 "event_id": event_id,
                 "sequence": sequence,
-                "request_id": request_id,
                 "created_at": utc_now(),
                 **payload,
             }
