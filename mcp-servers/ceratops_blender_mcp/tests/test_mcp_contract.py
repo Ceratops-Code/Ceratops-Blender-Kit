@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import tomllib
+from pathlib import Path
 
 import pytest
 
-from ceratops_blender_mcp import __version__
 from ceratops_blender_mcp.__main__ import main
 from ceratops_blender_mcp.server import mcp
 
@@ -51,11 +52,15 @@ def test_server_exposes_the_complete_v1_tool_contract() -> None:
 def test_deployment_check_reports_exact_release_identity(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    project_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with project_path.open("rb") as stream:
+        project = tomllib.load(stream)["project"]
+
     main(["--deployment-check"])
 
     output = capsys.readouterr().out
     assert json.loads(output) == {
         "mcp_server_id": "ceratops-blender-mcp",
-        "version": __version__,
+        "version": project["version"],
         "ready": True,
     }
