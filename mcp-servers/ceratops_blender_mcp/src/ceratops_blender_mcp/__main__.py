@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from collections.abc import Sequence
@@ -16,13 +17,16 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments == ["--deployment-check"]:
-        from .server import mcp
-
-        _ = mcp
+        from .server import get_tool_input_contract
 
         print(
             json.dumps(
-                {"mcp_server_id": MCP_SERVER_ID, "version": __version__, "ready": True},
+                {
+                    "mcp_server_id": MCP_SERVER_ID,
+                    "version": __version__,
+                    "ready": True,
+                    "tools": asyncio.run(get_tool_input_contract()),
+                },
                 separators=(",", ":"),
             )
         )

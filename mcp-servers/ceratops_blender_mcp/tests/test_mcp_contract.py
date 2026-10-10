@@ -63,4 +63,21 @@ def test_deployment_check_reports_exact_release_identity(
         "mcp_server_id": "ceratops-blender-mcp",
         "version": project["version"],
         "ready": True,
+        "tools": {
+            tool.name: {"input_schema": tool.input_schema, "opaque_parameters": []}
+            for tool in asyncio.run(mcp.list_tools())
+        },
     }
+
+
+def test_lip_sync_publishes_complete_cue_input_schema() -> None:
+    tools = {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
+    schema = tools["sync_lips"].input_schema
+    cue = schema["properties"]["cues"]["items"]
+    if "$ref" in cue:
+        cue = schema["$defs"][cue["$ref"].removeprefix("#/$defs/")]
+
+    assert cue["type"] == "object"
+    assert cue["required"] == ["frame"]
+    assert cue["properties"]["frame"]["type"] == "integer"
+    assert cue["properties"]["value"]["type"] == "number"
