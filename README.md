@@ -54,7 +54,7 @@ uv run --project $server --locked ceratops-blender-mcp
 ```
 
 The source entry point uses MCP stdio. After managed deployment, a host should
-launch `C:\AI-Agents-MCP-Servers\ceratops-blender-mcp\bin\ceratops-blender-mcp.cmd
+launch `%USERPROFILE%\.codex\mcp\ceratops-blender-mcp\bin\ceratops-blender-mcp.cmd
 --mcp` and pass the Blender executable through its environment when Blender is
 not on `PATH`.
 

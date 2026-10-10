@@ -13,7 +13,7 @@ uv run --project mcp-servers/ceratops_blender_mcp --locked ceratops-blender-mcp
 ```
 
 Managed deployment packages this directory and installs the declared version
-under `C:\AI-Agents-MCP-Servers\ceratops-blender-mcp`. The module supports the
+under `%USERPROFILE%\.codex\mcp\ceratops-blender-mcp`. The module supports the
 manager's fixed `--deployment-check` protocol and the `--mcp` stdio switch.
 
 See the repository [`README.md`](../../README.md) for the tool contract and
