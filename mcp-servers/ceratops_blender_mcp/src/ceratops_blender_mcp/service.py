@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import threading
 import zipfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
 from typing import Any
+
+from filelock import FileLock
 
 from .blender_runtime import BlenderRuntime
 from .jobs import JobManager
@@ -19,6 +22,23 @@ from .storage import (
     require_identifier,
     require_version,
 )
+
+
+def serialize_production[ProductionResult](
+    function: Callable[..., ProductionResult],
+) -> Callable[..., ProductionResult]:
+    """Serialize output creation so a fresh call can remove abandoned partials."""
+    @wraps(function)
+    def invoke(
+        self: ProductionService, project_root: str | ProjectStore, *args: Any, **kwargs: Any
+    ) -> ProductionResult:
+        store = (
+            project_root if isinstance(project_root, ProjectStore) else self._store(project_root)
+        )
+        store.initialize()
+        with FileLock(store.state_root / "production.lock", timeout=7200):
+            return function(self, project_root, *args, **kwargs)
+    return invoke
 
 
 @dataclass(frozen=True)
@@ -216,13 +236,13 @@ class ProductionService:
             "differences": differences,
         }
 
+    @serialize_production
     def import_character_reference(
         self,
         project_root: str,
         *,
         character_id: str,
         reference_files: Sequence[str],
-        request_id: str,
     ) -> dict[str, object]:
         """Copy exact reference files into a new immutable character version."""
 
@@ -230,7 +250,6 @@ class ProductionService:
             raise ProductionError("at least one reference file is required")
         store = self._store(project_root)
         require_identifier(character_id, "character_id")
-        require_identifier(request_id, "request_id")
         inputs = []
         for value in reference_files:
             path = Path(value).expanduser().resolve()
@@ -238,22 +257,15 @@ class ProductionService:
                 raise ProductionError(f"reference file does not exist: {path}")
             inputs.append({"name": path.name, **file_digest(path)})
         parameters = {"references": inputs}
-        existing = self._record_for_request(store, "character", character_id, request_id)
-        if existing:
-            if (
-                existing.get("operation") != "import_character_reference"
-                or existing.get("parameters") != parameters
-            ):
-                raise ProductionError("request_id is already bound to different reference inputs")
-            return existing
         _, root = store.reserve_version(
             "character",
             character_id,
             operation="import_character_reference",
             parent_version=None,
-            request_id=request_id,
             parameters=parameters,
         )
+        if (root / "record.json").is_file():
+            return store.read_json(root / "record.json")
         try:
             outputs = store.copy_inputs(reference_files, root / "references")
             return store.complete_version(root, stage="reference", artifacts=outputs)
@@ -267,7 +279,6 @@ class ProductionService:
         *,
         operation: str,
         entity_id: str,
-        request_id: str,
         source_version: str | None,
         parameters: Mapping[str, object] | None = None,
     ) -> dict[str, object]:
@@ -277,7 +288,6 @@ class ProductionService:
         if spec is None:
             raise ProductionError(f"unsupported production operation: {operation}")
         require_identifier(entity_id, f"{spec.entity_type}_id")
-        require_identifier(request_id, "request_id")
         if spec.requires_source and source_version is None:
             raise ProductionError(f"{operation} requires an exact source_version")
         if source_version is not None:
@@ -306,7 +316,6 @@ class ProductionService:
         return self.jobs.submit(
             store,
             operation=operation,
-            request_id=request_id,
             payload=payload,
             executor=self._execute_job,
         )
@@ -320,7 +329,6 @@ class ProductionService:
         version: str,
         gate: str,
         reviewer: str,
-        request_id: str,
         notes: str = "",
     ) -> dict[str, object]:
         """Record an explicit review approval without changing version bytes."""
@@ -343,7 +351,6 @@ class ProductionService:
         return store.append_event(
             asset_type,
             asset_id,
-            request_id=request_id,
             payload={
                 "event": "promote",
                 "version": version,
@@ -360,7 +367,6 @@ class ProductionService:
         asset_type: str,
         asset_id: str,
         version: str,
-        request_id: str,
         reason: str,
     ) -> dict[str, object]:
         """Archive a version without deleting its files or immutable record."""
@@ -381,7 +387,6 @@ class ProductionService:
         return store.append_event(
             asset_type,
             asset_id,
-            request_id=request_id,
             payload={"event": "archive", "version": version, "reason": reason.strip()},
         )
 
@@ -423,7 +428,6 @@ class ProductionService:
         asset_type: str,
         asset_id: str,
         version: str,
-        request_id: str,
     ) -> dict[str, object]:
         """Submit packaging for one exact character or shot version."""
 
@@ -442,7 +446,6 @@ class ProductionService:
         return self.jobs.submit(
             store,
             operation="package_asset",
-            request_id=request_id,
             payload=payload,
             executor=self._execute_job,
         )
@@ -453,7 +456,6 @@ class ProductionService:
         *,
         episode_id: str,
         shot_versions: Mapping[str, str],
-        request_id: str,
     ) -> dict[str, object]:
         """Submit a package containing exact, caller-selected shot versions."""
 
@@ -475,7 +477,6 @@ class ProductionService:
         return self.jobs.submit(
             store,
             operation="package_episode",
-            request_id=request_id,
             payload=payload,
             executor=self._execute_job,
         )
@@ -485,16 +486,7 @@ class ProductionService:
 
         return self.jobs.status(self._store(project_root), job_id)
 
-    def cancel_job(self, project_root: str, *, job_id: str) -> dict[str, object]:
-        """Request cancellation of one exact job."""
-
-        return self.jobs.cancel(self._store(project_root), job_id)
-
-    def resume_job(self, project_root: str, *, job_id: str) -> dict[str, object]:
-        """Resume a recoverable job with the same stable ID and request payload."""
-
-        return self.jobs.resume(self._store(project_root), job_id, self._execute_job)
-
+    @serialize_production
     def _execute_job(
         self, store: ProjectStore, job: Mapping[str, Any], cancellation: threading.Event
     ) -> dict[str, object]:
@@ -559,9 +551,13 @@ class ProductionService:
             entity_id,
             operation=operation,
             parent_version=str(source_version) if source_version else None,
-            request_id=str(job["request_id"]),
             parameters=dict(payload.get("parameters", {})),
         )
+        if (root / "record.json").is_file():
+            record = store.read_json(root / "record.json")
+            return {"entity_type": spec.entity_type, "entity_id": entity_id,
+                    "version": version, "stage": record["stage"],
+                    "record_hash": payload_hash(record)}
         try:
             artifacts = self.blender.run(
                 store=store,
@@ -599,9 +595,13 @@ class ProductionService:
             delivery_id,
             operation=operation,
             parent_version=None,
-            request_id=str(job["request_id"]),
             parameters=dict(payload),
         )
+        if (root / "record.json").is_file():
+            record = store.read_json(root / "record.json")
+            return {"entity_type": "delivery", "entity_id": delivery_id,
+                    "version": version, "package": f"{delivery_id}-{version}.zip",
+                    "record_hash": payload_hash(record)}
         package_path = root / f"{delivery_id}-{version}.zip"
         manifest_path = root / "package-manifest.json"
         try:
@@ -657,15 +657,6 @@ class ProductionService:
         if not root.is_dir():
             return []
         return sorted(path.name for path in root.iterdir() if path.is_dir())
-
-    @staticmethod
-    def _record_for_request(
-        store: ProjectStore, entity_type: str, entity_id: str, request_id: str
-    ) -> dict[str, Any] | None:
-        for record in store.version_records(entity_type, entity_id):
-            if record.get("request_id") == request_id:
-                return record
-        return None
 
     @staticmethod
     def _validate_parameters(operation: str, parameters: Mapping[str, object]) -> None:
