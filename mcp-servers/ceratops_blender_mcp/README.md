@@ -1,7 +1,7 @@
 # Ceratops Blender MCP server
 
 This directory is the complete deployable MCP server source. It owns the
-package declaration, development and deployment locks, readiness manifest,
+package declaration, canonical `uv.lock`, readiness manifest,
 Python module, and focused tests. Repository-wide governance, lifecycle scripts,
 the companion skill, and public documentation remain at the repository root.
 
@@ -13,6 +13,8 @@ uv run --project mcp-servers/ceratops_blender_mcp --locked ceratops-blender-mcp
 ```
 
 Managed deployment packages this directory and installs the declared version
+using the same canonical lock as development. A second exported lock is not
+retained because the manager rejects ambiguous dependency inputs.
 under `%USERPROFILE%\.codex\mcp\ceratops-blender-mcp`. The module supports the
 manager's fixed `--deployment-check` protocol and the `--mcp` stdio switch.
 Readiness reports the package version, tool input schemas, and each tool's
