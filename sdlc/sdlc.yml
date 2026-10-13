@@ -79,3 +79,16 @@ deliverables:
                 action: deploy
                 inputs:
                   skill: ceratops-blender-kit
+  scripts:
+    blender-ram-monitor:
+      source: scripts/limit-blender-ram.ps1
+      prerequisites: []
+      actions:
+        validate:
+          requires:
+            capabilities: []
+          no-op: Repository tests cover the Windows RAM monitor and native working-set boundary.
+        install:
+          requires:
+            capabilities: []
+          no-op: The standalone monitor runs directly from scripts/limit-blender-ram.ps1 in the promoted primary checkout; no separate installation is needed.
