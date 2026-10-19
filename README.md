@@ -63,6 +63,34 @@ The server uses the maintained MCP Python SDK v2 (`mcp>=2,<3`) and its
 `MCPServer` API. The package name and Python module use lowercase ecosystem
 forms; the server identity presented to users is Ceratops-Blender-MCP.
 
+## Monitor Blender RAM on Windows
+
+Run the standalone monitor in a PowerShell console:
+
+```powershell
+powershell.exe -NoProfile -File .\scripts\limit-blender-ram.ps1
+```
+
+It runs until Ctrl+C, monitors existing and newly started `blender.exe` processes,
+and adjusts their combined pageable working-set allowance to target **1.5 GiB of
+available system RAM**. Windows can page Blender's larger allocations to disk;
+the monitor does not impose a total allocation limit. The optional parameters
+`-AvailableGiB`, `-IntervalSeconds`, and `-SettleSeconds` default to 1.5, 1, and
+5.
+Caps respect existing hard minimum/maximum limits, use a 64 MiB per-process floor,
+and allow time for paging between adjustments. Other applications, shared pages,
+and nonpageable memory can prevent the target from being reached; it is not a
+guaranteed reserve. Expect slower rendering under memory pressure.
+
+Keep the console open. Normal stopping restores the prior sizes and enforcement
+flags when they still belong to this monitor. Force-killing the monitor bypasses
+cleanup and leaves its last limits on surviving Blender processes; a subsequent
+monitor run can adjust them again, but cannot recover originals lost with the
+killed process. Limits also disappear when Blender exits. Access or job-object
+restrictions are reported per process, without changing privileges or job limits.
+Only one monitor may run on the computer. The script creates no runtime
+files, logs, startup entries, or scheduled tasks and runs no model calls.
+
 ## Tool contract
 
 Read tools never initialize a project or alter production state:
