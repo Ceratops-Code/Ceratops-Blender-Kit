@@ -96,6 +96,34 @@ Groom, rig, face-rig, and final-render transitions require the selected source
 to equal the version promoted at their preceding gate. The skill pauses for the
 human decision; the server makes skipping the gate an invalid state.
 
+## Optional Windows RAM monitor
+
+`scripts/limit-blender-ram.ps1` is an independent, manually started Windows helper.
+It discovers all accessible `blender.exe` processes and uses system Available RAM
+as feedback for their aggregate pageable working-set allowance, targeting 1.5 GiB
+by default. It never changes Blender's commit limit, pagefile configuration,
+production artifacts, or the MCP server's subprocess ownership. Windows native
+APIs supply the maintained memory controls; no additional runtime package is
+required beyond Windows PowerShell.
+
+The controller holds stable process handles, original limits, and its pending
+and completed effects only in memory. It checks current settings before writing,
+uses page-aligned caps, respects existing hard bounds, and detects outside writers.
+New Blender processes trigger a new distribution of the shared allowance; exited
+handles are discarded without redirecting writes to a recycled PID. Bounded
+contractions, hysteresis, and settling time reduce repeated paging churn. A named
+machine-wide mutex excludes competing copies of this monitor. Access and native
+API
+failures are visible and isolate that process for the remainder of its lifetime.
+
+Graceful shutdown restores sizes and enforcement flags only where current state
+still matches an owned effect. An interruption immediately after an effect is
+covered by the pending value. Abrupt termination cannot restore RAM-only originals;
+remaining caps last until another writer changes them or Blender exits. Available
+RAM is a best-effort target because other workloads, shared/dirty pages, and
+nonpageable allocations are outside the helper's control. The helper produces no
+runtime files or persistent operational history.
+
 ## Blender boundary
 
 Blender is launched in background mode with an optional exact source `.blend`,
