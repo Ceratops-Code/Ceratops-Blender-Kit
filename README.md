@@ -17,6 +17,11 @@ an approved version needs bespoke editing.
 | --- | --- |
 | `ceratops-blender-kit` | Orchestrate versioned Blender character and shot production, including exact-source selection, review gates, approvals, and packaging. |
 
+Install the workflow skill from a clean checkout with
+`uv run --project scripts --locked python scripts/deploy-skills.py`.
+The locked scripts project supplies the bootstrap dependencies; the installer
+prepares the skill runtime separately.
+
 ## What works
 
 - Read-only project and asset inspection, exact version comparison, and
