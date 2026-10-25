@@ -9,6 +9,7 @@ dependencies = [
   "pytest",
   "pytest-timeout>=2.4,<3",
   "ruff",
+  "tomlkit==0.15.2",
 ]
 
 [tool.uv]
