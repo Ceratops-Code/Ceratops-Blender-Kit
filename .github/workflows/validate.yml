@@ -21,7 +21,7 @@ jobs:
       - name: Install npm validation dependencies
         run: npm --prefix scripts ci
       - name: Validate and test through SDLC
-        uses: Ceratops-Code/Ceratops-AI-Agents-Kit/skills/ceratops-repo-lifecycle/scripts@d23b0bc439fb77e8291a85588a85a75163289f42 # revision d23b0bc439fb
+        uses: Ceratops-Code/Ceratops-AI-Agents-Kit/skills/ceratops-repo-lifecycle/scripts@cf02717df2ad6fffd72dc3a46f999f6aed45bf4d # revision d23b0bc439fb
         with:
           repo-root: ${{ github.workspace }}
           evidence-file: ${{ runner.temp }}/repository-validation.log
