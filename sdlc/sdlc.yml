@@ -1,4 +1,4 @@
-version: 4
+version: 5
 kind: ceratops-sdlc
 repository:
   capabilities:
@@ -16,37 +16,41 @@ repository:
             - --project
             - scripts
             - --locked
-    validate:
-      requires:
-        capabilities:
-          - uv
-      steps:
-        - run:
-            - uv
-            - run
-            - --locked
-            - scripts/validate-repository.py
-    test:
-      requires:
-        capabilities:
-          - uv
-      steps:
-        - run:
-            - uv
-            - run
-            - --locked
-            - scripts/run-tests.py
+    pre-build-checks:
+      check-groups:
+        source:
+          requires:
+            capabilities:
+              - uv
+          steps:
+            - run:
+                - uv
+                - run
+                - --locked
+                - scripts/validate-repository.py
+        tests:
+          requires:
+            capabilities:
+              - uv
+          steps:
+            - run:
+                - uv
+                - run
+                - --locked
+                - scripts/run-tests.py
 deliverables:
   mcp-servers:
     ceratops-blender-mcp:
-      source: mcp-servers/ceratops_blender_mcp
+      root-dir: mcp-servers/ceratops_blender_mcp
       manifest: mcp-servers/ceratops_blender_mcp/mcp-server.json
-      prerequisites: []
+      build-after: []
       actions:
-        validate:
-          requires:
-            capabilities: []
-          no-op: Repository validation and tests cover the MCP server source and manifest.
+        pre-build-checks:
+          check-groups:
+            source:
+              requires:
+                capabilities: []
+              no-op: Repository validation and tests cover the MCP server source and manifest.
         install:
           requires:
             capabilities: []
@@ -58,18 +62,20 @@ deliverables:
                   mcp-server: ceratops-blender-mcp
   skills:
     ceratops-blender-kit:
-      source: skills/ceratops-blender-kit
-      prerequisites: []
+      root-dir: skills/ceratops-blender-kit
+      build-after: []
       actions:
-        validate:
-          requires:
-            capabilities: []
-          steps:
-            - handoff:
-                lifecycle: ceratops-skill-lifecycle
-                action: source-validate
-                inputs:
-                  skill: ceratops-blender-kit
+        pre-build-checks:
+          check-groups:
+            source:
+              requires:
+                capabilities: []
+              steps:
+                - handoff:
+                    lifecycle: ceratops-skill-lifecycle
+                    action: source-validate
+                    inputs:
+                      skill: ceratops-blender-kit
         install:
           requires:
             capabilities: []
