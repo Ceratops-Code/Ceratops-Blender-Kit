@@ -20,7 +20,10 @@ request:
 ```powershell
 npm --prefix scripts ci
 uv sync --project scripts --locked
-uv run --locked scripts/validate-repository.py
+npm --prefix scripts run lint:markdown
+uv run --project scripts --locked python -m ruff check --config mcp-servers/ceratops_blender_mcp/pyproject.toml .
+uv run --project scripts --locked python -m mypy --config-file mcp-servers/ceratops_blender_mcp/pyproject.toml mcp-servers/ceratops_blender_mcp/src/ceratops_blender_mcp
+uv run --project scripts --locked python scripts/run-actionlint.py
 uv run --locked scripts/run-tests.py
 ```
 

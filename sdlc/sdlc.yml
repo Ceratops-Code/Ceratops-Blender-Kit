@@ -1,43 +1,177 @@
 version: 5
 kind: ceratops-sdlc
 repository:
-  capabilities:
+  tools:
     uv:
       executable: uv
+    python:
+      executable: python
+      version-from:
+        file: scripts/pyproject.toml
+        key: project.requires-python
+    node:
+      executable: node
+      version-from:
+        file: scripts/package.json
+        key: engines.node
+    npm:
+      executable: npm
   actions:
     bootstrap:
       requires:
-        capabilities:
+        tools:
           - uv
+          - node
+          - npm
       steps:
-        - run:
-            - uv
-            - sync
-            - --project
-            - scripts
-            - --locked
+        - run: [uv, sync, --project, scripts, --locked]
+        - run: [npm, ci, --prefix, scripts]
     pre-build-checks:
       check-groups:
-        source:
+        npm-markdown-lint:
           requires:
-            capabilities:
+            tools:
+              - node
+              - npm
+          validation-tools:
+            - npm-markdown-lint
+          check-results:
+            result-owner: operation
+            product-inputs:
+              - '**/*.md'
+            check-inputs:
+              - sdlc/sdlc.yml
+              - scripts/package.json
+              - scripts/.markdownlint.json
+            dependencies:
+              - scripts/package-lock.json
+            tools:
+              - node
+              - npm
+          steps:
+            - run: [npm, --prefix, scripts, run, lint:markdown]
+        ruff:
+          requires:
+            tools:
               - uv
+              - python
+          validation-tools:
+            - ruff
+          check-results:
+            result-owner: operation
+            product-inputs:
+              - '**/*.py'
+              - '**/*.pyi'
+              - '**/*.ipynb'
+            check-inputs:
+              - sdlc/sdlc.yml
+              - scripts/pyproject.toml
+              - mcp-servers/ceratops_blender_mcp/pyproject.toml
+              - .gitignore
+              - '**/.gitignore'
+            dependencies:
+              - scripts/uv.lock
+            environment:
+              - UV_OFFLINE
+              - UV_PYTHON
+              - UV_PYTHON_PREFERENCE
+            tools:
+              - uv
+              - python
           steps:
             - run:
                 - uv
                 - run
+                - --project
+                - scripts
                 - --locked
-                - scripts/validate-repository.py
+                - python
+                - -m
+                - ruff
+                - check
+                - --config
+                - mcp-servers/ceratops_blender_mcp/pyproject.toml
+                - .
+        mypy:
+          requires:
+            tools:
+              - uv
+              - python
+          validation-tools:
+            - mypy
+          check-results:
+            result-owner: operation
+            product-inputs:
+              - mcp-servers/ceratops_blender_mcp/**/*.py
+              - mcp-servers/ceratops_blender_mcp/**/*.pyi
+            check-inputs:
+              - sdlc/sdlc.yml
+              - scripts/pyproject.toml
+              - mcp-servers/ceratops_blender_mcp/pyproject.toml
+              - .gitignore
+              - '**/.gitignore'
+            dependencies:
+              - scripts/uv.lock
+            environment:
+              - UV_OFFLINE
+              - UV_PYTHON
+              - UV_PYTHON_PREFERENCE
+              - MYPYPATH
+            tools:
+              - uv
+              - python
+          steps:
+            - run:
+                - uv
+                - run
+                - --project
+                - scripts
+                - --locked
+                - python
+                - -m
+                - mypy
+                - --config-file
+                - mcp-servers/ceratops_blender_mcp/pyproject.toml
+                - mcp-servers/ceratops_blender_mcp/src/ceratops_blender_mcp
+        actionlint:
+          requires:
+            tools:
+              - uv
+              - python
+          validation-tools:
+            - actionlint
+          check-results:
+            result-owner: operation
+            product-inputs:
+              - .github/workflows/*.yml
+              - .github/workflows/*.yaml
+              - .github/actions/**
+            check-inputs:
+              - sdlc/sdlc.yml
+              - scripts/pyproject.toml
+              - scripts/run-actionlint.py
+              - .github/actionlint.yaml
+              - .github/actionlint.yml
+            dependencies:
+              - scripts/uv.lock
+            environment:
+              - UV_OFFLINE
+              - UV_PYTHON
+              - UV_PYTHON_PREFERENCE
+              - GITHUB_EVENT_NAME
+              - GITHUB_EVENT_PATH
+              - GITHUB_ACTIONS
+            tools:
+              - uv
+              - python
+          steps:
+            - run: [uv, run, --project, scripts, --locked, python, scripts/run-actionlint.py]
         tests:
           requires:
-            capabilities:
+            tools:
               - uv
           steps:
-            - run:
-                - uv
-                - run
-                - --locked
-                - scripts/run-tests.py
+            - run: [uv, run, --locked, scripts/run-tests.py]
 deliverables:
   mcp-servers:
     ceratops-blender-mcp:
@@ -49,11 +183,11 @@ deliverables:
           check-groups:
             source:
               requires:
-                capabilities: []
+                tools: []
               no-op: Repository validation and tests cover the MCP server source and manifest.
         install:
           requires:
-            capabilities: []
+            tools: []
           steps:
             - handoff:
                 lifecycle: ceratops-mcp-server-lifecycle
@@ -69,7 +203,7 @@ deliverables:
           check-groups:
             source:
               requires:
-                capabilities: []
+                tools: []
               steps:
                 - handoff:
                     lifecycle: ceratops-skill-lifecycle
@@ -78,7 +212,7 @@ deliverables:
                       skill: ceratops-blender-kit
         install:
           requires:
-            capabilities: []
+            tools: []
           steps:
             - handoff:
                 lifecycle: ceratops-skill-lifecycle
