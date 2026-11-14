@@ -14,7 +14,7 @@
   "overrides": {
     "js-yaml": "5.4.1",
     "katex": "0.18.2",
-    "smol-toml": "1.9.0",
+    "smol-toml": "1.9.1",
     "minimatch": "11.0.1",
     "re2js": "2.8.7"
   }
