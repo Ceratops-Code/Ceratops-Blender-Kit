@@ -24,7 +24,7 @@ npm --prefix scripts run lint:markdown
 uv run --project scripts --locked python -m ruff check --config mcp-servers/ceratops_blender_mcp/pyproject.toml .
 uv run --project scripts --locked python -m mypy --config-file mcp-servers/ceratops_blender_mcp/pyproject.toml mcp-servers/ceratops_blender_mcp/src/ceratops_blender_mcp
 uv run --project scripts --locked python scripts/run-actionlint.py
-uv run --locked scripts/run-tests.py
+uv run --project scripts --locked python scripts/run-tests.py
 ```
 
 The real Blender smoke test runs only when `CERATOPS_BLENDER_EXECUTABLE` is set.
