@@ -175,6 +175,9 @@ repository:
 deliverables:
   mcp-servers:
     ceratops-blender-mcp:
+      version:
+        file: "mcp-servers/ceratops_blender_mcp/pyproject.toml"
+        field: "project.version"
       root-dir: mcp-servers/ceratops_blender_mcp
       manifest: mcp-servers/ceratops_blender_mcp/mcp-server.json
       build-after: []
