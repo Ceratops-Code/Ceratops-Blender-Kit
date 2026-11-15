@@ -171,7 +171,7 @@ repository:
             tools:
               - uv
           steps:
-            - run: [uv, run, --locked, scripts/run-tests.py]
+            - run: [uv, run, --project, scripts, --locked, python, scripts/run-tests.py]
 deliverables:
   mcp-servers:
     ceratops-blender-mcp:
