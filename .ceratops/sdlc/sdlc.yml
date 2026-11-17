@@ -40,7 +40,7 @@ repository:
             product-inputs:
               - '**/*.md'
             check-inputs:
-              - sdlc/sdlc.yml
+              - .ceratops/sdlc/sdlc.yml
               - scripts/package.json
               - scripts/.markdownlint.json
             dependencies:
@@ -64,7 +64,7 @@ repository:
               - '**/*.pyi'
               - '**/*.ipynb'
             check-inputs:
-              - sdlc/sdlc.yml
+              - .ceratops/sdlc/sdlc.yml
               - scripts/pyproject.toml
               - mcp-servers/ceratops_blender_mcp/pyproject.toml
               - .gitignore
@@ -105,7 +105,7 @@ repository:
               - mcp-servers/ceratops_blender_mcp/**/*.py
               - mcp-servers/ceratops_blender_mcp/**/*.pyi
             check-inputs:
-              - sdlc/sdlc.yml
+              - .ceratops/sdlc/sdlc.yml
               - scripts/pyproject.toml
               - mcp-servers/ceratops_blender_mcp/pyproject.toml
               - .gitignore
@@ -147,7 +147,7 @@ repository:
               - .github/workflows/*.yaml
               - .github/actions/**
             check-inputs:
-              - sdlc/sdlc.yml
+              - .ceratops/sdlc/sdlc.yml
               - scripts/pyproject.toml
               - scripts/run-actionlint.py
               - .github/actionlint.yaml

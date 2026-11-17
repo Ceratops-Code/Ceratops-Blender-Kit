@@ -6,6 +6,7 @@ dependencies = [
   "filelock>=4.2.7,<5",
   "mcp>=2,<3",
   "mypy",
+  "packaging>=26.3",
   "pytest",
   "pytest-timeout>=2.4,<3",
   "ruff",

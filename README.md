@@ -158,8 +158,8 @@ is not persisted as an unbounded log.
 
 ## Development and repository lifecycle
 
-The repository's single lifecycle contract is `sdlc/sdlc.yml`. It declares the
-real validation and test entry points created by current Ceratops compatibility
+The repository's single lifecycle contract is `.ceratops/sdlc/sdlc.yml`. It
+declares the check and test entry points created by current Ceratops compatibility
 tooling. Run them through the repository lifecycle operation runner, or use the
 narrow developer commands while editing:
 
