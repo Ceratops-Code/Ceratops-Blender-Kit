@@ -13,5 +13,4 @@ build/
 .ceratops-blender/
 
 /scripts/node_modules/
-/.build/
-/.ceratops/results/test-diagnostics/
+/.test-diagnostics/
