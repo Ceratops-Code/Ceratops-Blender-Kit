@@ -166,8 +166,12 @@ narrow developer commands while editing:
 ```powershell
 uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked ruff check .
 uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked mypy
-uv run --project scripts --locked python scripts/run-tests.py mcp-servers/ceratops_blender_mcp/tests
+uv run --project scripts --locked python scripts/run-tests.py --temporary-root $env:CERATOPS_TASK_TEMP_ROOT mcp-servers/ceratops_blender_mcp/tests
 ```
+
+Use a writable temp base for `--temporary-root`. Each checkout keeps its
+pytest files in its own `.pytest-scratch` directory during a run. After a
+forced stop, let the worker tree exit before starting the next run.
 
 Tests use a recording Blender runtime so versioning, gating, packaging, and MCP
 contracts are exercised without pretending that a local Blender installation
