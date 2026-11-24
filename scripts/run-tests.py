@@ -700,7 +700,7 @@ def select_build_check_summaries(
     candidates: list[tuple[Version, str, str]] = []
     for tag in _build_git(root, "tag", "--merged", head).decode().splitlines():
         name, separator, version = tag.rpartition("/")
-        if not separator or unit is not None and name != unit:
+        if not separator or (unit is not None and name != unit):
             continue
         try:
             parsed_version = Version(version)
@@ -720,7 +720,7 @@ def select_build_check_summaries(
             parts = path.removeprefix(prefix).split("/")
             if not path.startswith(prefix) or parts[-1] != "build_receipt.json" or len(parts) > 2:
                 continue
-            if len(parts) == 2 and ((name, parts[0]) in chosen or target is not None and parts[0] != target):
+            if len(parts) == 2 and ((name, parts[0]) in chosen or (target is not None and parts[0] != target)):
                 continue
             selected = read_build_check_summary(root, tag, path, revision=head)
             destination = selected["receipt"]["identity"]["target"]
