@@ -166,7 +166,7 @@ narrow developer commands while editing:
 ```powershell
 uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked ruff check .
 uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked mypy
-uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked pytest
+uv run --project scripts --locked python scripts/run-tests.py mcp-servers/ceratops_blender_mcp/tests
 ```
 
 Tests use a recording Blender runtime so versioning, gating, packaging, and MCP
