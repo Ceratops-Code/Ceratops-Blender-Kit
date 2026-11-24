@@ -1061,10 +1061,7 @@ def _owned_test_scratch(
     project_temp = configured_temp / project
     # SDLC can pass an already-qualified task directory. Always take the
     # checkout identity from the working tree, including on the release branch.
-    if parent == project_temp or parent.parent == project_temp:
-        base = configured_temp
-    else:
-        base = parent
+    base = configured_temp if parent == project_temp or parent.parent == project_temp else parent
     key = checkout.name
     configured_projects = environ.get("CERATOPS_PROJECTS_ROOT")
     if ((configured_projects and projects != pathlib.Path(configured_projects).resolve())
