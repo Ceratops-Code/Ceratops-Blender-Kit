@@ -158,16 +158,20 @@ is not persisted as an unbounded log.
 
 ## Development and repository lifecycle
 
-The repository's single lifecycle contract is `sdlc/sdlc.yml`. It declares the
-real validation and test entry points created by current Ceratops compatibility
+The repository's single lifecycle contract is `.ceratops/sdlc/sdlc.yml`. It
+declares the check and test entry points created by current Ceratops compatibility
 tooling. Run them through the repository lifecycle operation runner, or use the
 narrow developer commands while editing:
 
 ```powershell
 uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked ruff check .
 uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked mypy
-uv run --project mcp-servers/ceratops_blender_mcp --extra dev --locked pytest
+uv run --project scripts --locked python scripts/run-tests.py --temporary-root $env:CERATOPS_TASK_TEMP_ROOT mcp-servers/ceratops_blender_mcp/tests
 ```
+
+Use a writable temp base for `--temporary-root`. Each checkout keeps its
+pytest files in its own `.pytest-scratch` directory during a run. After a
+forced stop, let the worker tree exit before starting the next run.
 
 Tests use a recording Blender runtime so versioning, gating, packaging, and MCP
 contracts are exercised without pretending that a local Blender installation

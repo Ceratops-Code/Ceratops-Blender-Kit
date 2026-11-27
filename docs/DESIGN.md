@@ -171,8 +171,9 @@ runtime log file; the job record retains a bounded error summary.
 
 ## Repository lifecycle boundary
 
-`sdlc/sdlc.yml` is the sole repository lifecycle declaration. Current Ceratops
-compatibility supplies repository validation and test actions, declares the MCP
+`.ceratops/sdlc/sdlc.yml` is the sole repository lifecycle declaration. Current
+Ceratops compatibility supplies repository check and test actions, declares the
+MCP
 server source and manifest under `mcp-servers/ceratops_blender_mcp`, and routes
 installation to `ceratops-mcp-server-lifecycle`. The repository still declares
 no PyPI publication or hosted-service deployment.

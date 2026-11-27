@@ -1,0 +1,264 @@
+version: 5
+kind: ceratops-sdlc
+repository:
+  tools:
+    uv:
+      executable: uv
+    python:
+      executable: python
+      version-from:
+        file: scripts/pyproject.toml
+        key: project.requires-python
+    node:
+      executable: node
+      version-from:
+        file: scripts/package.json
+        key: engines.node
+    npm:
+      executable: npm
+  actions:
+    bootstrap:
+      requires:
+        tools:
+        - uv
+        - node
+        - npm
+      steps:
+      - run:
+        - uv
+        - sync
+        - --project
+        - scripts
+        - --locked
+      - run:
+        - uv
+        - run
+        - --project
+        - scripts
+        - --locked
+        - python
+        - -c
+        - import shutil, subprocess, sys; tool = shutil.which(sys.argv[1]); sys.exit(subprocess.call([tool,
+          *sys.argv[2:]]) if tool else f'{sys.argv[1]} is not on PATH')
+        - npm
+        - ci
+        - --prefix
+        - scripts
+    pre-build-checks:
+      check-groups:
+        npm-markdown-lint:
+          requires:
+            tools:
+            - node
+            - npm
+          validation-tools:
+          - npm-markdown-lint
+          check-results:
+            result-owner: operation
+            product-inputs:
+            - '**/*.md'
+            check-inputs:
+            - .ceratops/sdlc/sdlc.yml
+            - scripts/package.json
+            - scripts/.markdownlint.json
+            dependencies:
+            - scripts/package-lock.json
+            tools:
+            - node
+            - npm
+          steps:
+          - run:
+            - npm
+            - --prefix
+            - scripts
+            - run
+            - lint:markdown
+        ruff:
+          requires:
+            tools:
+            - uv
+            - python
+          validation-tools:
+          - ruff
+          check-results:
+            result-owner: operation
+            product-inputs:
+            - '**/*.py'
+            - '**/*.pyi'
+            - '**/*.ipynb'
+            check-inputs:
+            - .ceratops/sdlc/sdlc.yml
+            - scripts/pyproject.toml
+            - mcp-servers/ceratops_blender_mcp/pyproject.toml
+            - .gitignore
+            - '**/.gitignore'
+            dependencies:
+            - scripts/uv.lock
+            environment:
+            - UV_OFFLINE
+            - UV_PYTHON
+            - UV_PYTHON_PREFERENCE
+            tools:
+            - uv
+            - python
+          steps:
+          - run:
+            - uv
+            - run
+            - --project
+            - scripts
+            - --locked
+            - python
+            - -m
+            - ruff
+            - check
+            - --config
+            - mcp-servers/ceratops_blender_mcp/pyproject.toml
+            - .
+        mypy:
+          requires:
+            tools:
+            - uv
+            - python
+          validation-tools:
+          - mypy
+          check-results:
+            result-owner: operation
+            product-inputs:
+            - mcp-servers/ceratops_blender_mcp/**/*.py
+            - mcp-servers/ceratops_blender_mcp/**/*.pyi
+            check-inputs:
+            - .ceratops/sdlc/sdlc.yml
+            - scripts/pyproject.toml
+            - mcp-servers/ceratops_blender_mcp/pyproject.toml
+            - .gitignore
+            - '**/.gitignore'
+            dependencies:
+            - scripts/uv.lock
+            environment:
+            - UV_OFFLINE
+            - UV_PYTHON
+            - UV_PYTHON_PREFERENCE
+            - MYPYPATH
+            tools:
+            - uv
+            - python
+          steps:
+          - run:
+            - uv
+            - run
+            - --project
+            - scripts
+            - --locked
+            - python
+            - -m
+            - mypy
+            - --config-file
+            - mcp-servers/ceratops_blender_mcp/pyproject.toml
+            - mcp-servers/ceratops_blender_mcp/src/ceratops_blender_mcp
+        actionlint:
+          requires:
+            tools:
+            - uv
+            - python
+          validation-tools:
+          - actionlint
+          check-results:
+            result-owner: operation
+            product-inputs:
+            - .github/workflows/*.yml
+            - .github/workflows/*.yaml
+            - .github/actions/**
+            check-inputs:
+            - .ceratops/sdlc/sdlc.yml
+            - scripts/pyproject.toml
+            - scripts/run-actionlint.py
+            - .github/actionlint.yaml
+            - .github/actionlint.yml
+            dependencies:
+            - scripts/uv.lock
+            environment:
+            - UV_OFFLINE
+            - UV_PYTHON
+            - UV_PYTHON_PREFERENCE
+            - GITHUB_EVENT_NAME
+            - GITHUB_EVENT_PATH
+            - GITHUB_ACTIONS
+            tools:
+            - uv
+            - python
+          steps:
+          - run:
+            - uv
+            - run
+            - --project
+            - scripts
+            - --locked
+            - python
+            - scripts/run-actionlint.py
+        tests:
+          requires:
+            tools:
+            - uv
+          steps:
+          - run:
+            - uv
+            - run
+            - --project
+            - scripts
+            - --locked
+            - python
+            - scripts/run-tests.py
+            - --temporary-root
+            - '{temporary_root}'
+deliverables:
+  mcp-servers:
+    ceratops-blender-mcp:
+      version:
+        file: mcp-servers/ceratops_blender_mcp/pyproject.toml
+        field: project.version
+      root-dir: mcp-servers/ceratops_blender_mcp
+      manifest: mcp-servers/ceratops_blender_mcp/mcp-server.json
+      build-after: []
+      actions:
+        pre-build-checks:
+          check-groups:
+            source:
+              requires:
+                tools: []
+              no-op: Repository validation and tests cover the MCP server source and
+                manifest.
+        install:
+          requires:
+            tools: []
+          steps:
+          - handoff:
+              lifecycle: ceratops-mcp-server-lifecycle
+              action: install
+              inputs:
+                mcp-server: ceratops-blender-mcp
+  skills:
+    ceratops-blender-kit:
+      root-dir: skills/ceratops-blender-kit
+      build-after: []
+      actions:
+        pre-build-checks:
+          check-groups:
+            source:
+              requires:
+                tools: []
+              steps:
+              - handoff:
+                  lifecycle: ceratops-skill-lifecycle
+                  action: source-validate
+                  inputs:
+                    skill: ceratops-blender-kit
+        install:
+          requires:
+            tools: []
+          steps:
+          - handoff:
+              lifecycle: ceratops-skill-lifecycle
+              action: deploy
+              inputs:
+                skill: ceratops-blender-kit
