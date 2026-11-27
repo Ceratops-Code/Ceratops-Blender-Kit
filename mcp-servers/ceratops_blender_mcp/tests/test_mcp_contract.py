@@ -46,10 +46,12 @@ EXPECTED_TOOLS = {
 }
 
 
-def test_local_beta_reads_tagged_alpha_checks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_local_beta_reads_tagged_alpha_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repository = Path(__file__).resolve().parents[3]
     runner = runpy.run_path(str(repository / "scripts/run-tests.py"))
-    select_build_check_summaries = runner["select_build_check_summaries"]
+    select_summaries = runner["select_build_check_summaries"]
     monkeypatch.setenv("GITHUB_ACTIONS", "false")
     storage_key = "members/packages/fixture"
     version = "1.0a1"
@@ -63,7 +65,8 @@ def test_local_beta_reads_tagged_alpha_checks(tmp_path: Path, monkeypatch: pytes
         "qualificationLevel": "alpha", "completed_ns": 101,
     }
     summary_bytes = json.dumps({
-        "schema": "ceratops-check-summary.v1", "inputGroups": {}, "checkGroups": {}, "checks": [original],
+        "schema": "ceratops-check-summary.v1", "inputGroups": {}, "checkGroups": {},
+        "checks": [original],
     }).encode()
     (tmp_path / summary).write_bytes(summary_bytes)
     (tmp_path / receipt).write_text(json.dumps({
@@ -71,8 +74,10 @@ def test_local_beta_reads_tagged_alpha_checks(tmp_path: Path, monkeypatch: pytes
         "identity": {"storageKey": storage_key, "version": version, "target": "native"},
         "receiptPath": receipt.as_posix(),
         "committedResultPaths": [receipt.as_posix(), summary.as_posix()],
-        "checkSummary": {"root": "git", "path": summary.as_posix(),
-                         "size": len(summary_bytes), "sha256": hashlib.sha256(summary_bytes).hexdigest()},
+        "checkSummary": {
+            "root": "git", "path": summary.as_posix(), "size": len(summary_bytes),
+            "sha256": hashlib.sha256(summary_bytes).hexdigest(),
+        },
     }), encoding="utf-8")
     commands = [
         ["init", "--quiet"], ["add", "--force", "--", receipt.as_posix(), summary.as_posix()],
@@ -85,11 +90,11 @@ def test_local_beta_reads_tagged_alpha_checks(tmp_path: Path, monkeypatch: pytes
         subprocess.run(["git", *command], cwd=tmp_path, check=True, capture_output=True)
 
     for _repeat in range(2):
-        selected, = select_build_check_summaries(tmp_path, qualification_level="beta", target="native")
+        selected, = select_summaries(tmp_path, qualification_level="beta", target="native")
         assert selected["receipt"]["identity"]["version"] == version
         assert selected["summary"]["checks"] == [original]
     for level in ("rc", "final"):
-        assert select_build_check_summaries(tmp_path, qualification_level=level, target="native") == []
+        assert select_summaries(tmp_path, qualification_level=level, target="native") == []
 
 
 def test_server_exposes_the_complete_v1_tool_contract() -> None:
